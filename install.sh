@@ -1,79 +1,100 @@
 #!/bin/sh
-# Install AirPlay 2 receiver (shairport-sync + nqptp) on Alpine 3.24 / aarch64.
-# Run from the repository root: sh install.sh ["AirPlay name"]
+# Alpine 3.24 / aarch64 only. No firmware, input bindings or ALSA changes.
 set -eu
-
-name=${1:-"Капсула Мини"}
-root=$(cd "$(dirname "$0")" && pwd)
-cd "$root"
-
-test "$(id -u)" = 0 || { echo "Run as root" >&2; exit 1; }
-test "$(uname -m)" = aarch64 || { echo "Only aarch64 is supported" >&2; exit 1; }
-test -f /etc/alpine-release || { echo "This is not Alpine Linux" >&2; exit 1; }
-case "$(cat /etc/alpine-release)" in
-    3.24*) ;;
-    *) echo "Tested on Alpine 3.24 only, found $(cat /etc/alpine-release)" >&2; exit 1 ;;
-esac
-
-test -f SHA256SUMS || { echo "SHA256SUMS not found" >&2; exit 1; }
-sha256sum -c SHA256SUMS
-
-same_or_absent() {
-    src=$1 dst=$2
-    if [ -e "$dst" ]; then
-        if ! cmp -s "$src" "$dst"; then
-            echo "Refusing to overwrite existing (different): $dst" >&2
-            exit 1
-        fi
-        echo "Already in place: $dst"
+cd "$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)"
+upgrade=no
+check=no
+name_mode=preserve
+name=
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --upgrade) upgrade=yes ;;
+        --check) check=yes ;;
+        --hostname) name_mode=hostname ;;
+        --name) shift; [ "$#" -gt 0 ] || exit 2; name=$1; name_mode=custom ;;
+        --*) echo "Unknown option: $1" >&2; exit 2 ;;
+        *) [ "$name_mode" = preserve ] || exit 2; name=$1; name_mode=custom ;;
+    esac
+    shift
+done
+die() { echo "$*" >&2; exit 1; }
+[ "$(id -u)" = 0 ] || die 'Run as root'
+[ "$(uname -m)" = aarch64 ] || die 'Only aarch64 is supported'
+[ -f /etc/alpine-release ] || die 'Alpine is required'
+case "$(cat /etc/alpine-release)" in 3.24.*|3.24) ;; *) die 'Alpine 3.24 is required' ;; esac
+sha256sum -c SHA256SUMS || die 'Bundle checksum verification failed'
+[ -s /etc/asound.conf ] || die 'Configure ALSA default first; /etc/asound.conf is missing'
+[ -d /dev/snd ] || die 'No ALSA device found'
+conf=/etc/shairport-sync.conf
+if [ "$name_mode" = hostname ] || { [ "$name_mode" = preserve ] && [ ! -e "$conf" ]; }; then
+    name=$(cat /etc/hostname) || die 'Cannot read /etc/hostname'
+    name_mode=hostname
+fi
+if [ "$name_mode" != preserve ]; then
+    # DNS-SD's RAOP prefix needs 13 bytes of the 63-byte label.
+    [ -n "$name" ] && [ "$(printf %s "$name" | wc -c)" -le 50 ] || die 'Name must be 1..50 UTF-8 bytes'
+    [ "$(printf %s "$name" | wc -l)" -eq 0 ] || die 'Name must be a single line'
+    if printf %s "$name" | LC_ALL=C grep -q '[[:cntrl:]"\\]'; then
+        die 'Name must not contain control characters, double quotes or backslashes'
     fi
-}
-same_or_absent bin/shairport-sync        /usr/local/bin/shairport-sync
-same_or_absent bin/nqptp                 /usr/local/sbin/nqptp
-same_or_absent etc/shairport-sync.conf   /etc/shairport-sync.conf
-same_or_absent etc/init.d.nqptp          /etc/init.d/nqptp
-same_or_absent etc/init.d.shairport-sync /etc/init.d/shairport-sync
+    echo "AirPlay name: $name ($name_mode)"
+else
+    echo 'Keeping existing AirPlay name and configuration'
+fi
 
-df -Pk / | awk 'NR == 2 { if ($4 < 20000) { print "Not enough free space" > "/dev/stderr"; exit 1 } }'
+# Check all targets before changing anything. Custom config is deliberately preserved.
+for pair in 'bin/shairport-sync:/usr/local/bin/shairport-sync' 'bin/nqptp:/usr/local/sbin/nqptp' 'etc/init.d.nqptp:/etc/init.d/nqptp' 'etc/init.d.shairport-sync:/etc/init.d/shairport-sync'; do
+    src=${pair%%:*}; dst=${pair#*:}
+    [ ! -L "$dst" ] || die "Refusing symlink: $dst"
+    if [ -e "$dst" ] && ! cmp -s "$src" "$dst" && [ "$upgrade" != yes ]; then
+        die "Different existing file: $dst. Use --upgrade for a backed-up update."
+    fi
+done
+[ ! -L "$conf" ] || die "Refusing symlink: $conf"
+df -Pk / | awk 'NR==2 {if ($4 < 30000) exit 1}' || die 'Need at least 30 MiB free'
+if [ "$check" = yes ]; then echo PREFLIGHT_PASS; exit 0; fi
 
-apk add --no-cache avahi avahi-tools libplist libsodium libgcrypt \
-    libconfig popt soxr libgomp libuuid >/dev/null
+backup=$(mktemp -d /root/airplay2-backup-XXXXXXXX)
+chmod 700 "$backup"
+echo "Backup: $backup"
+for path in /usr/local/bin/shairport-sync /usr/local/sbin/nqptp /etc/shairport-sync.conf /etc/init.d/nqptp /etc/init.d/shairport-sync; do
+    if [ -e "$path" ]; then
+        mkdir -p "$backup/files$(dirname "$path")"
+        cp -p "$path" "$backup/files$path"
+    fi
+done
+cp /etc/apk/world "$backup/apk-world.before"
+rc-update show > "$backup/runlevels.before"
+apk add --no-cache avahi avahi-tools libplist libsodium libgcrypt libconfig popt soxr libgomp libuuid
 
+# Do not replace a live executable; stop only our receiver and timing daemon.
+for svc in shairport-sync nqptp; do
+    if [ -f "/etc/init.d/$svc" ]; then rc-service "$svc" stop || die "Could not stop $svc"; fi
+done
 mkdir -p /usr/local/bin /usr/local/sbin
-install -m 0755 bin/shairport-sync /usr/local/bin/shairport-sync
-install -m 0755 bin/nqptp /usr/local/sbin/nqptp
-install -m 0755 etc/init.d.nqptp /etc/init.d/nqptp
-install -m 0755 etc/init.d.shairport-sync /etc/init.d/shairport-sync
-
-# Keep an existing local configuration: only write the shipped one when absent
-# or already identical.
-if [ ! -e /etc/shairport-sync.conf ]; then
-    install -m 0644 etc/shairport-sync.conf /etc/shairport-sync.conf
+for pair in 'bin/shairport-sync:/usr/local/bin/shairport-sync' 'bin/nqptp:/usr/local/sbin/nqptp' 'etc/init.d.nqptp:/etc/init.d/nqptp' 'etc/init.d.shairport-sync:/etc/init.d/shairport-sync'; do
+    src=${pair%%:*}; dst=${pair#*:}
+    install -m 0755 "$src" "$dst.new"
+    mv -f "$dst.new" "$dst"
+done
+[ -e "$conf" ] || install -m 0644 etc/shairport-sync.conf "$conf"
+if [ "$name_mode" != preserve ]; then
+    # Pass data through the environment, not through shell/awk program text.
+    AIRPLAY_INSTALL_NAME=$name awk '
+      /^[ \t]*name[ \t]*=/ { print "\tname = \"" ENVIRON["AIRPLAY_INSTALL_NAME"] "\";"; found=1; next }
+      {print}
+      END {if (!found) exit 1}
+    ' "$conf" > "$conf.new" || die "No name field in config; backup: $backup"
+    chmod 0644 "$conf.new"
+    mv -f "$conf.new" "$conf"
 fi
-if [ "$name" != "Капсула Мини" ]; then
-    sed -i "s|^\([[:space:]]*name = \).*|\1\"$name\";|" /etc/shairport-sync.conf
-fi
-
-rc-update add avahi-daemon default
-rc-update add nqptp default
-rc-update add shairport-sync default
-
-rc-service dbus start >/dev/null 2>&1 || true
-rc-service avahi-daemon start || true
-rc-service nqptp start || true
+for svc in avahi-daemon nqptp shairport-sync; do rc-update add "$svc" default; done
+rc-service dbus status >/dev/null 2>&1 || rc-service dbus start
+rc-service avahi-daemon status >/dev/null 2>&1 || rc-service avahi-daemon start
+rc-service nqptp start
+rc-service shairport-sync start
 sleep 2
-rc-service shairport-sync start || true
-sleep 3
-
-echo "== services"
-rc-service avahi-daemon status
-rc-service nqptp status
-rc-service shairport-sync status
-echo "== ports"
-ss -lunp | grep -E ':(319|320) ' || true
-ss -lntp | grep -E ':7000 ' || true
-echo "== airplay"
-avahi-browse -rt _airplay._tcp 2>/dev/null | grep -A8 'hostname' | head -12 || true
-echo "== hashes"
-sha256sum /usr/local/bin/shairport-sync /usr/local/sbin/nqptp
-echo INSTALL_PASS
+for svc in avahi-daemon nqptp shairport-sync; do
+    rc-service "$svc" status || die "Service failed: $svc. Backup: $backup (see docs/WINDOWS.md)"
+done
+echo "INSTALL_PASS (backup: $backup). Audio and buttons still need an owner test."
