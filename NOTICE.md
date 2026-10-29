@@ -6,7 +6,7 @@
 
 ## shairport-sync
 
-- Версия: `5.6.2-AirPlay2-smi11-OpenSSL-Avahi-ALSA-soxr-metadata-sysconfdir:/etc`
+- Версия: `5.6.2-dirty-AirPlay2-smi11-OpenSSL-Avahi-ALSA-soxr-metadata-sysconfdir:/etc`
 - Исходник: https://github.com/mikebrady/shairport-sync
 - Коммит: `0a34fbda83724cc06266aadcf7c88acc8fef4e7d`
 - Условия: см. `COPYING` и `LICENSES` в дереве исходников; часть файлов имеет
@@ -45,3 +45,10 @@ shairport-sync с `--with-airplay-2`. Файл `BUILD_INFO.txt` фиксируе
 
 Бинарники предоставляются «как есть», без каких-либо гарантий. Установка
 выполняется на свой риск.
+
+## Исправление значка — v1.0.1
+
+Модель AirPlay изменена с `ShairportSync` на `AudioAccessory5,1`: круглый
+значок как у Mini/Lite. Патч: `build/model-icon.patch`. Суффикс `-dirty`
+в версии означает эту локальную правку. Имя и настройки звука не меняются.
+iOS может кешировать старый значок.

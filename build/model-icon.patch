@@ -1,0 +1,13 @@
+diff --git a/shairport.c b/shairport.c
+index 7a06caa..fe64eb5 100644
+--- a/shairport.c
++++ b/shairport.c
+@@ -593,7 +593,7 @@ int parse_options(int argc, char **argv) {
+   // seconds then we can add an offset of 5.17 seconds and still leave a second's worth of buffers
+   // for unexpected circumstances
+ 
+-  config.model = strdup("ShairportSync");
++  config.model = strdup("AudioAccessory5,1");
+   // config.model = strdup("AirPort10,115");
+   //  config.model = strdup("AudioAccessory5,1");
+ 

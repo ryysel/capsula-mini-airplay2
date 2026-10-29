@@ -49,6 +49,14 @@ cd "$SRC/nqptp"
 
 echo "=== shairport-sync $SPS_TAG (AirPlay 2) ==="
 cd "$SRC/shairport-sync"
+# Local modification: advertise the same round-speaker model as Mini/Lite.
+# Apply once, invalidate only the receiver binary, and retain upstream version provenance.
+git config --global --add safe.directory "$SRC/shairport-sync"
+if grep -q 'config.model = strdup("ShairportSync");' shairport.c; then
+  sed -i 's/config.model = strdup("ShairportSync");/config.model = strdup("AudioAccessory5,1");/' shairport.c
+  rm -f shairport-sync
+fi
+grep -q '^  config.model = strdup("AudioAccessory5,1");' shairport.c
 [ -x shairport-sync ] || {
   autoreconf -fi >/dev/null 2>&1
   PKG_CONFIG_PATH="$FFOUT/lib/pkgconfig" ./configure --sysconfdir=/etc \

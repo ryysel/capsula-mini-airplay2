@@ -122,8 +122,32 @@ upstream-репозиториях по коммитам выше; `build/build.s
 ## Контрольные суммы
 
 ```
-f3d79c1b5c6694cfb0650980158b74f80b325aead5c5a4923ef590cc1d9a1af5  bin/shairport-sync
+ce934c9554fe9065e6cf56efa77b1084727897feb7b64f7fe6d296cc4d3d8df4  bin/shairport-sync
 46fa1399c3b1bc8f5680fc67959cfb0c1638b1b10e15c454eac5ae56a6504edf  bin/nqptp
 ```
 
 Полный список — `SHA256SUMS`.
+
+## Исправление значка — v1.0.1
+
+Модель AirPlay изменена с `ShairportSync` на `AudioAccessory5,1`: круглый
+значок как у Mini/Lite. Патч: `build/model-icon.patch`. Суффикс `-dirty`
+в версии означает эту локальную правку. Имя и настройки звука не меняются.
+iOS может кешировать старый значок.
+
+### Обновление с v1.0.0 (root, из нового архива)
+
+`install.sh` намеренно не перезаписывает отличающийся бинарник. Для обновления:
+
+```sh
+sha256sum -c SHA256SUMS || exit 1
+cp -p /usr/local/bin/shairport-sync /root/shairport-sync.before-v1.0.1
+rc-service shairport-sync stop
+install -m 0755 bin/shairport-sync /usr/local/bin/shairport-sync
+rc-service shairport-sync start
+rc-service shairport-sync status
+```
+
+Конфиг (включая имя комнаты) сохранится. Для отката остановите службу,
+верните `/root/shairport-sync.before-v1.0.1` в `/usr/local/bin/shairport-sync`
+и запустите службу снова.
