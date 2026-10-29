@@ -1,0 +1,25 @@
+shairport-source 0a34fbda83724cc06266aadcf7c88acc8fef4e7d
+nqptp-source ab8fb67483411640fd7f1e193889482f2421c37c
+ffmpeg-source f46e514491172d15bd74b4abb1814cd2f05a763e
+5.6.2-AirPlay2-smi11-OpenSSL-Avahi-ALSA-soxr-metadata-sysconfdir:/etc
+Version: 1.2.9. Shared Memory Interface Version: smi11.
+	/lib/ld-musl-aarch64.so.1 (0x70f568b30000)
+	libuuid.so.1 => /usr/lib/libuuid.so.1 (0x4000019f6000)
+	libgcrypt.so.20 => /usr/lib/libgcrypt.so.20 (0x400001a17000)
+	libsodium.so.26 => /usr/lib/libsodium.so.26 (0x400001b2d000)
+	libplist-2.0.so.4 => /usr/lib/libplist-2.0.so.4 (0x400001b8e000)
+	libasound.so.2 => /usr/lib/libasound.so.2 (0x400001bbf000)
+	libavahi-common.so.3 => /usr/lib/libavahi-common.so.3 (0x400001cc0000)
+	libavahi-client.so.3 => /usr/lib/libavahi-client.so.3 (0x400001ce1000)
+	libsoxr.so.0 => /usr/lib/libsoxr.so.0 (0x400001d02000)
+	libcrypto.so.3 => /usr/lib/libcrypto.so.3 (0x400001d68000)
+	libconfig.so.15 => /usr/lib/libconfig.so.15 (0x4000021ce000)
+	libpopt.so.0 => /usr/lib/libpopt.so.0 (0x4000021ef000)
+	libgcc_s.so.1 => /usr/lib/libgcc_s.so.1 (0x400002210000)
+	libc.musl-aarch64.so.1 => /lib/ld-musl-aarch64.so.1 (0x70f568b30000)
+	libgpg-error.so.0 => /usr/lib/libgpg-error.so.0 (0x400002241000)
+	libintl.so.8 => /usr/lib/libintl.so.8 (0x400002282000)
+	libdbus-1.so.3 => /usr/lib/libdbus-1.so.3 (0x4000022c4000)
+	libgomp.so.1 => /usr/lib/libgomp.so.1 (0x400002325000)
+f3d79c1b5c6694cfb0650980158b74f80b325aead5c5a4923ef590cc1d9a1af5  /out/shairport-sync
+46fa1399c3b1bc8f5680fc67959cfb0c1638b1b10e15c454eac5ae56a6504edf  /out/nqptp

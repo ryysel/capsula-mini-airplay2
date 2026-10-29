@@ -1,0 +1,12 @@
+#!/sbin/openrc-run
+name="nqptp"
+description="Not Quite PTP timing daemon for AirPlay 2 (shairport-sync)"
+
+command="/usr/local/sbin/nqptp"
+command_background="yes"
+pidfile="/run/nqptp.pid"
+
+depend() {
+	need net
+	after firewall
+}

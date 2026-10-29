@@ -1,0 +1,13 @@
+#!/sbin/openrc-run
+name="shairport-sync"
+description="AirPlay 2 audio receiver (shairport-sync)"
+
+command="/usr/local/bin/shairport-sync"
+command_args="--configfile=/etc/shairport-sync.conf --log-to-syslog"
+command_background="yes"
+pidfile="/run/shairport-sync.pid"
+
+depend() {
+	need dbus avahi-daemon nqptp
+	after network
+}
