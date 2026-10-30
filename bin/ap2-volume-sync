@@ -31,7 +31,7 @@ if [ "$was_active" != 1 ]; then
         case "$master" in ''|*[!0-9]*) master=50 ;; esac
         echo $((now + 1)) > "$STATE_DIR/ap2-volume.suppress"
         "$CTL" percent "$master" >/dev/null 2>&1 || true
-        printf '1 %s\n' "$master" > "$STATE"
+        printf '1 %s 1\n' "$master" > "$STATE"
         exit 0
     fi
 fi

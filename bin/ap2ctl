@@ -16,9 +16,17 @@ status)
     call org.gnome.ShairportSync.GetControlStatus
     ;;
 active)
-    # 1 only when a sender is attached (live AP2 control channel).
     call org.gnome.ShairportSync.GetControlStatus |
         awk '/boolean/ { print ($2 == "true") ? 1 : 0; exit }'
+    ;;
+playing)
+    if call org.freedesktop.DBus.Properties.Get \
+        "string:org.gnome.ShairportSync.RemoteControl" "string:PlayerState" |
+        grep -q 'string "Playing"'; then
+        echo 1
+    else
+        echo 0
+    fi
     ;;
 pause|play|next|prev)
     case "$1" in
@@ -36,7 +44,7 @@ percent)
     call org.gnome.ShairportSync.RemoteControl.SetAirplayVolume "double:$db"
     ;;
 *)
-    echo "usage: ap2ctl status|active|pause|play|next|prev|volume <dB>|percent <0..100>" >&2
+    echo "usage: ap2ctl status|active|playing|pause|play|next|prev|volume <dB>|percent <0..100>" >&2
     exit 2
     ;;
 esac

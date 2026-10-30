@@ -1,9 +1,10 @@
 #!/bin/sh
-# Two-way AirPlay volume bridge for the Capsula Mini.
+# Two-way AirPlay volume bridge and ring-state reporter for the Capsula Mini.
 #  - sender volume -> ap2-volume-sync -> capsule-tweaker IPC (VOL)
 #  - tweaker volume (buttons/menu) -> shairport SetAirplayVolume
 #  - on a new session publish the speaker's own level first ("native-first")
-# The tweaker stays the only writer of the ALSA Master control.
+#  - AP2 1/2/0 tells the tweaker to show connected/playing/off on the ring
+# The tweaker stays the only writer of the ALSA control and the ring.
 set -eu
 STATE_DIR=${AP2_STATE_DIR:-/run}
 IPC=${AP2_IPC:-/usr/local/bin/capsule-ipc}
@@ -20,10 +21,20 @@ step() {
     now=$1
     active=$2
     master=$3
-    [ -f "$STATE" ] || echo "0 $master" > "$STATE"
-    read -r was_active last_master < "$STATE"
+    ap2=0
+    if [ "$active" = 1 ]; then
+        playing=$("$CTL" playing 2>/dev/null || echo 0)
+        if [ "$playing" = 1 ]; then ap2=2; else ap2=1; fi
+    fi
+    [ -f "$STATE" ] || echo "0 $master 0" > "$STATE"
+    read -r was_active last_master last_ap2 < "$STATE" || true
     case "$was_active" in ''|*[!0-9]*) was_active=0 ;; esac
     case "$last_master" in ''|*[!0-9]*) last_master=$master ;; esac
+    case "$last_ap2" in ''|*[!0-9]*) last_ap2=0 ;; esac
+    if [ "$ap2" != "$last_ap2" ]; then
+        "$IPC" "AP2 $ap2" >/dev/null 2>&1 || true
+        last_ap2=$ap2
+    fi
     if [ "$active" = 1 ]; then
         if [ "$was_active" = 0 ]; then
             # New session: the speaker's level wins over the sender's slider.
@@ -42,7 +53,7 @@ step() {
     else
         last_master=$master
     fi
-    printf '%s %s\n' "$active" "$last_master" > "$STATE.tmp"
+    printf '%s %s %s\n' "$active" "$last_master" "$last_ap2" > "$STATE.tmp"
     mv "$STATE.tmp" "$STATE"
 }
 
@@ -58,7 +69,9 @@ if [ "$once" = yes ]; then
     run_once
     exit 0
 fi
-trap 'rm -f "$STATE.tmp"' EXIT
+# Never leave a stale ring state behind.
+"$IPC" "AP2 0" >/dev/null 2>&1 || true
+trap 'rm -f "$STATE.tmp"; "$IPC" "AP2 0" >/dev/null 2>&1 || true' EXIT
 while :; do
     run_once
     sleep 1
