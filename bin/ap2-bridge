@@ -1,0 +1,65 @@
+#!/bin/sh
+# Two-way AirPlay volume bridge for the Capsula Mini.
+#  - sender volume -> ap2-volume-sync -> capsule-tweaker IPC (VOL)
+#  - tweaker volume (buttons/menu) -> shairport SetAirplayVolume
+#  - on a new session publish the speaker's own level first ("native-first")
+# The tweaker stays the only writer of the ALSA Master control.
+set -eu
+STATE_DIR=${AP2_STATE_DIR:-/run}
+IPC=${AP2_IPC:-/usr/local/bin/capsule-ipc}
+CTL=${AP2_CTL:-/usr/local/bin/ap2ctl}
+STATE=$STATE_DIR/ap2-bridge.state
+once=no
+[ "${1:-}" = --once ] && once=yes
+
+now_fn() {
+    if [ -n "${AP2_NOW:-}" ]; then echo "$AP2_NOW"; else date +%s; fi
+}
+
+step() {
+    now=$1
+    active=$2
+    master=$3
+    [ -f "$STATE" ] || echo "0 $master" > "$STATE"
+    read -r was_active last_master < "$STATE"
+    case "$was_active" in ''|*[!0-9]*) was_active=0 ;; esac
+    case "$last_master" in ''|*[!0-9]*) last_master=$master ;; esac
+    if [ "$active" = 1 ]; then
+        if [ "$was_active" = 0 ]; then
+            # New session: the speaker's level wins over the sender's slider.
+            echo $((now + 3)) > "$STATE_DIR/ap2-volume.suppress"
+            "$CTL" percent "$master" >/dev/null 2>&1 || true
+            last_master=$master
+        elif [ "$master" != "$last_master" ]; then
+            phone=$(cat "$STATE_DIR/ap2-volume.phone" 2>/dev/null || echo 0)
+            case "$phone" in ''|*[!0-9]*) phone=0 ;; esac
+            if [ $((now - phone)) -gt 2 ]; then
+                echo $((now + 2)) > "$STATE_DIR/ap2-volume.suppress"
+                "$CTL" percent "$master" >/dev/null 2>&1 || true
+            fi
+            last_master=$master
+        fi
+    else
+        last_master=$master
+    fi
+    printf '%s %s\n' "$active" "$last_master" > "$STATE.tmp"
+    mv "$STATE.tmp" "$STATE"
+}
+
+run_once() {
+    active=$("$CTL" active 2>/dev/null || echo 0)
+    case "$active" in 0|1) ;; *) active=0 ;; esac
+    master=$("$IPC" GET 2>/dev/null | awk '{print $2}')
+    case "$master" in ''|*[!0-9]*) master=50 ;; esac
+    step "$(now_fn)" "$active" "$master"
+}
+
+if [ "$once" = yes ]; then
+    run_once
+    exit 0
+fi
+trap 'rm -f "$STATE.tmp"' EXIT
+while :; do
+    run_once
+    sleep 1
+done

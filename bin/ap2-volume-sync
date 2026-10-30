@@ -1,0 +1,43 @@
+#!/bin/sh
+# shairport-sync calls this with the AirPlay volume in dB (-30..0 = 0..100%,
+# -144 = mute). It applies the sender's level to the speaker through the
+# capsule-tweaker IPC, which remains the only writer of the ALSA control.
+# If the sender's first volume event arrives before ap2-bridge has noticed the
+# new session, publish the speaker's own level instead of adopting the slider.
+set -eu
+STATE_DIR=${AP2_STATE_DIR:-/run}
+IPC=${AP2_IPC:-/usr/local/bin/capsule-ipc}
+CTL=${AP2_CTL:-/usr/local/bin/ap2ctl}
+STATE=$STATE_DIR/ap2-bridge.state
+now=${AP2_NOW:-$(date +%s)}
+v=${1:-}
+case "$v" in ''|*[!0-9.-]*) echo "ap2-volume-sync: bad volume '$v'" >&2; exit 1 ;; esac
+suppress=$(cat "$STATE_DIR/ap2-volume.suppress" 2>/dev/null || echo 0)
+case "$suppress" in ''|*[!0-9]*) suppress=0 ;; esac
+if [ "$now" -lt "$suppress" ]; then
+    # The bridge is publishing our own level to the sender; ignore the echo.
+    exit 0
+fi
+was_active=0
+if [ -f "$STATE" ]; then
+    read -r was_active _ < "$STATE" || true
+fi
+case "$was_active" in ''|*[!0-9]*) was_active=0 ;; esac
+if [ "$was_active" != 1 ]; then
+    # First event of a session: only now pay for the D-Bus round trip.
+    active=$("$CTL" active 2>/dev/null || echo 0)
+    if [ "$active" = 1 ]; then
+        master=$("$IPC" GET 2>/dev/null | awk '{print $2}')
+        case "$master" in ''|*[!0-9]*) master=50 ;; esac
+        echo $((now + 3)) > "$STATE_DIR/ap2-volume.suppress"
+        "$CTL" percent "$master" >/dev/null 2>&1 || true
+        printf '1 %s\n' "$master" > "$STATE"
+        exit 0
+    fi
+fi
+pct=$(awk -v v="$v" 'BEGIN {
+    if (v <= -144) p = 0; else { p = (v + 30) * 100 / 30; if (p < 0) p = 0; if (p > 100) p = 100 }
+    printf "%d", int((p + 2.5) / 5) * 5
+}')
+"$IPC" "VOL $pct" >/dev/null 2>&1 || exit 1
+printf '%s\n' "$now" > "$STATE_DIR/ap2-volume.phone"

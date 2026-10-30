@@ -11,6 +11,7 @@ printf '#!/bin/sh\nexit 0\n' > /mockbin/sleep
 for tool in apk rc-update rc-service; do
     printf '#!/bin/sh\nprintf "%%s\\n" "%s $*" >> /tmp/mock-calls\nexit 0\n' "$tool" > "/mockbin/$tool"
 done
+printf '#!/bin/sh\necho "   boolean true"\n' > /mockbin/dbus-send
 chmod +x /mockbin/*
 export PATH=/mockbin:$PATH
 cd /bundle

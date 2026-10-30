@@ -1,0 +1,42 @@
+#!/bin/sh
+# AirPlay 2 control helper for the Capsula Mini (shairport-sync D-Bus).
+set -eu
+obj=/org/gnome/ShairportSync
+dest=org.gnome.ShairportSync
+call() {
+    dbus-send --system --print-reply --dest=$dest "$obj" "$@"
+}
+props() {
+    call org.freedesktop.DBus.Properties.GetAll "string:$1"
+}
+case "${1:-status}" in
+status)
+    props org.gnome.ShairportSync
+    props org.gnome.ShairportSync.RemoteControl
+    call org.gnome.ShairportSync.GetControlStatus
+    ;;
+active)
+    # 1 only when a sender is attached (live AP2 control channel).
+    call org.gnome.ShairportSync.GetControlStatus |
+        awk '/boolean/ { print ($2 == "true") ? 1 : 0; exit }'
+    ;;
+pause|play|next|prev)
+    case "$1" in
+    pause) m=Pause ;; play) m=Play ;; next) m=Next ;; prev) m=Previous ;;
+    esac
+    call org.gnome.ShairportSync.RemoteControl.$m
+    ;;
+volume)
+    [ "$#" -eq 2 ] || { echo "usage: ap2ctl volume <dB -144..0>" >&2; exit 2; }
+    call org.gnome.ShairportSync.RemoteControl.SetAirplayVolume "double:$2"
+    ;;
+percent)
+    [ "$#" -eq 2 ] || { echo "usage: ap2ctl percent <0..100>" >&2; exit 2; }
+    db=$(awk -v p="$2" 'BEGIN { if (p<0) p=0; if (p>100) p=100; if (p==0) print -144; else printf "%.3f", p*0.3-30 }')
+    call org.gnome.ShairportSync.RemoteControl.SetAirplayVolume "double:$db"
+    ;;
+*)
+    echo "usage: ap2ctl status|active|pause|play|next|prev|volume <dB>|percent <0..100>" >&2
+    exit 2
+    ;;
+esac

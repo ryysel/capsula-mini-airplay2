@@ -1,0 +1,12 @@
+#!/sbin/openrc-run
+name="ap2-bridge"
+description="Two-way AirPlay 2 / capsule-tweaker volume bridge"
+
+command="/usr/local/bin/ap2-bridge"
+command_background="yes"
+pidfile="/run/ap2-bridge.pid"
+
+depend() {
+	need shairport-sync capsule-controls
+	after shairport-sync capsule-controls
+}

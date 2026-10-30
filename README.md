@@ -1,87 +1,114 @@
-# AirPlay 2 для VK Капсула Мини — Alpine 3.24 / aarch64
+# AirPlay 2 для VK Капсула Мини на Alpine Linux
 
-Предсобранные shairport-sync 5.6.2 + nqptp 1.2.9 (SMI11), статический FFmpeg
-n7.1.3 AAC/ALAC, конфиг и OpenRC. Модель `AudioAccessory5,1` даёт значок
-круглой колонки как у Mini/Lite. Изменение модели: `build/model-icon.patch`.
+Готовые бинарники и установщик AirPlay 2-приёмника для **VK Капсула Мини**
+(Amlogic A113X, aarch64) под **Alpine Linux 3.24**.
+
+Внутри: `shairport-sync` 5.6.2 с AirPlay 2, D-Bus-управлением и `nqptp` 1.2.9
+(SMI 11), собранные нативно под musl, плюс конфиг, службы OpenRC и
+двусторонняя громкость для колонок с `capsule-mini-tweaker`.
 
 **Это не прошивальщик.** Нужна уже работающая Alpine **3.24/aarch64**, root SSH,
-ALSA `default` и не менее 30 MiB свободного места. Только Amlogic A113X;
-стоковая ОС, Rockchip и другие версии Alpine не квалифицированы.
+ALSA `default` и не менее 30 MiB свободного места.
 
-## Windows — пошаговый мастер
+## Состав
 
-Скачайте и распакуйте архив релиза, запустите **Install-Windows.cmd**.
-Мастер проверит SHA256, спросит адрес/порт/ключ, покажет SSH preflight и
-попросит подтверждение `INSTALL`. OpenSSH не отключает проверку host key,
-пароли и ключи в комплект не входят. Подробности/откат: [docs/WINDOWS.md](docs/WINDOWS.md).
+| Файл | Что это |
+|---|---|
+| `bin/shairport-sync` | приёмник AirPlay 2 (aarch64, musl, D-Bus) |
+| `bin/nqptp` | PTP-демон, обязателен для AirPlay 2 |
+| `bin/capsule-ipc` | клиент к IPC твикера |
+| `bin/ap2ctl` | status/active/pause/play/next/prev/volume/percent |
+| `bin/ap2-volume-sync` | телефон → Master |
+| `bin/ap2-bridge` | Master → телефон, native-first |
+| `etc/shairport-sync.conf` | конфиг: имя, порт 7000, вывод на `default` |
+| `etc/init.d.*` | службы OpenRC |
+| `etc/dbus-policy.conf` | policy для имени `org.gnome.ShairportSync` |
+| `install.sh` / `uninstall.sh` | установка/удаление |
+| `build/` | рецепт сборки, патч модели, BUILD_INFO |
+| `SHA256SUMS` | контрольные суммы всех файлов |
 
-Windows-мастер экспериментальный: синтаксис, локальный комплект и mock-сценарий
-проверяются отдельно от реальной установки Windows → колонка.
-
-## Установка из SSH
+## Установка
 
 ```sh
-sh install.sh --check                     # только preflight, без изменений
-sh install.sh                             # новая установка: имя из /etc/hostname
-sh install.sh --upgrade                    # обновление с backup, старое имя сохраняется
-sh install.sh --upgrade --hostname         # явно взять текущее /etc/hostname
-sh install.sh --upgrade --name 'My Speaker' # своё имя
+git clone https://github.com/ryysel/capsula-mini-airplay2.git
+cd capsula-mini-airplay2
+sh install.sh --check        # только проверка
+sh install.sh                # имя из /etc/hostname
+sh install.sh --name 'Кухня' # своё имя
+sh install.sh --upgrade      # обновление с backup, имя сохраняется
 ```
 
-Имя hostname читается **на колонке**, не на ПК, и фиксируется в конфиге при
-установке. Перезапись `/etc/hostname` и автоматический ребинд кнопок не делаются.
-Настройки звука, Wi-Fi и конфиг твикера не меняются. На время обновления
-останавливаются только shairport-sync и nqptp.
+На Windows: распакуйте архив релиза и запустите **Install-Windows.cmd**.
+Мастер проверит SHA256, спросит адрес/порт/ключ и имя (Enter = hostname),
+покажет preflight и попросит `INSTALL`. Подробности — `docs/WINDOWS.md`.
 
-Если существующий бинарник отличается, без `--upgrade` установка откажет.
-При upgrade старые файлы, список APK world и runlevels сохраняются в
-`/root/airplay2-backup-XXXXXXXX` (700). Автоматического полного отката нет;
-инструкция в [docs/WINDOWS.md](docs/WINDOWS.md).
+Повторный запуск безопасен: файлы, совпадающие с комплектом, не перезаписываются,
+а отличающиеся — только с `--upgrade` (старые файлы, `apk world` и runlevels
+сохраняются в `/root/airplay2-backup-XXXXXXXX`).
 
-## Проверка и настройка
+## Управление и громкость
+
+- D-Bus (system bus): `GetControlStatus`, `RemoteControl.Pause/Play/Next/Previous`,
+  `SetAirplayVolume`, свойства `Available/Client/AirplayVolume/PlayerState`.
+- Если на колонке работает `capsule-mini-tweaker` (есть
+  `/run/capsule-controls.sock`), установщик включает `ap2-bridge` и
+  `ignore_volume_control`: телефон меняет Master через IPC твикера, кнопки
+  публикуются в телефон. На старте сессии сначала отправляется текущий уровень
+  (native-first), поэтому громкость не прыгает до ползунка телефона.
+- Без твикера мост не устанавливается, приёмник работает с собственной
+  программной громкостью.
+- Проверить из SSH: `ap2ctl status`, `ap2ctl active`, `ap2ctl pause`.
+
+Задержка «кнопка → телефон» до 1 секунды (период опроса моста).
+
+## Проверка
 
 ```sh
 rc-service shairport-sync status
 rc-service nqptp status
 rc-service avahi-daemon status
+rc-service ap2-bridge status      # если установлен твикер
+ss -lntp | grep 7000
 avahi-browse -rt _airplay._tcp
 ```
 
-UDP 319/320 — PTP, TCP 7000 — приёмник, UDP 5353 — mDNS. Телефон должен быть
-в той же доверенной LAN. `OPTIONS 200` и наличие анонса не доказывают звук:
-проверьте воспроизведение, громкость, паузу, reconnect и мультирум с iPhone.
+UDP 319/320 — PTP, TCP 7000 — приёмник, UDP 5353 — mDNS. `OPTIONS 200` и анонс
+не доказывают звук: проверьте воспроизведение, громкость в обе стороны,
+паузу, reconnect и мультирум с iPhone.
 
-Конфиг: `/etc/shairport-sync.conf`; после ручной правки —
-`rc-service shairport-sync restart`. Выход `default`, 48 кГц/S16/стерео.
-Громкость пока программная: телефон и Master — **два независимых уровня**,
-а не синхронизация. Если Master почти нулевой, телефонный ползунок не спасёт.
-Bluetooth может занять ALSA. iOS может кешировать имя/иконку.
+## Ограничения
 
-`sh uninstall.sh` удаляет бинарники и конфиг; предварительно сохраните свои
-настройки. APK и `/etc/asound.conf` не удаляются.
+- Только Alpine 3.24 / aarch64; другие версии и дистрибутивы не проверялись.
+- AirPlay 2 требует PTP: без `nqptp` звука не будет.
+- Модель `AudioAccessory5,1` (круглый значок как у Mini/Lite) — локальный патч,
+  версия `-dirty`; бит-в-бит воспроизведение не обещается.
+- avahi может писать `not fitting in legacy unicast packet` — multicast работает.
+- Bluetooth-аудио (`bluealsa-aplay`) может занять ALSA.
+- iOS кеширует имя/иконку.
 
-## Кнопки, синхронизация и функции Алисы
+## Удаление
 
-[Полный разбор переноса](docs/FEATURES.md),
-[обновления сообщества](docs/UPDATES_20261030.md).
-`triggerhappy + mpc` не управляет AirPlay на iPhone. Твикер уже захватывает
-кнопки; параллельный обработчик не устанавливается. Транспорт, двусторонняя
-громкость, голосовые команды и индикация из Station-airplay ещё **не перенесены**.
+```sh
+sh uninstall.sh
+```
 
-## Исходники и контроль целостности
+Останавливает и убирает службы, удаляет бинарники, конфиг и D-Bus policy.
+APK и `/etc/asound.conf` не трогает.
 
-Пины, версии и SHA256 — `build/BUILD_INFO.txt`, полный комплект — `SHA256SUMS`.
-Рецепт `build/build.sh` запускается в arm64-контейнере Alpine 3.24 с каталогами
-`/work` и `/out` (на x86 нужен qemu/binfmt). Бит-в-бит идентичность пересборки
-не обещается: образ и APK-версии не зафиксированы digest-ами.
+## Источники и лицензии
 
-* shairport-sync: https://github.com/mikebrady/shairport-sync, commit
-  `0a34fbda83724cc06266aadcf7c88acc8fef4e7d` + локальный model patch.
-* nqptp: https://github.com/mikebrady/nqptp, commit
-  `ab8fb67483411640fd7f1e193889482f2421c37c`.
-* FFmpeg: https://github.com/FFmpeg/FFmpeg, commit
-  `f46e514491172d15bd74b4abb1814cd2f05a763e`.
+- `shairport-sync` 5.6.2, commit `0a34fbda83724cc06266aadcf7c88acc8fef4e7d`
+  (https://github.com/mikebrady/shairport-sync) + патчи
+  `shared-controls`, `dacp-ipv4-discovery`, `preplay-event-channel` из
+  `Yandex-Station-Universal-Repo/Station-airplay` `1a11fd13c7ee`.
+- `nqptp` 1.2.9, commit `ab8fb67483411640fd7f1e193889482f2421c37c`.
+- FFmpeg `n7.1.3`, commit `f46e514491172d15bd74b4abb1814cd2f05a763e`
+  (только AAC/ALAC, статически).
 
-Скрипты/текст — MIT; бинарники сохраняют лицензии upstream, см. `NOTICE.md`.
-Предоставляется без гарантий. SHA256 защищает от повреждения архива,
-но не заменяет проверку доверия к источнику загрузки.
+Лицензии: `nqptp` — GPL-2.0; FFmpeg — LGPL-2.1+; `shairport-sync` — см.
+`LICENSES`/`COPYING` upstream. Наши скрипты и текст — MIT (`LICENSE`).
+Бинарники — «как есть», без гарантий. Архив исходников — по запросу через issue.
+
+## Контрольные суммы
+
+Полный список — `SHA256SUMS`.
