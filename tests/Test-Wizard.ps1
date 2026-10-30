@@ -30,5 +30,5 @@ if ($global:CapsulaTestCalls.Count -ne 4) { throw 'Wizard did not complete expec
 $joined = $global:CapsulaTestCalls -join "`n"
 if ($joined -match 'StrictHostKeyChecking=no|UserKnownHostsFile=NUL|192\.168\.') { throw 'Unsafe/private SSH option' }
 if ($joined -notmatch 'StrictHostKeyChecking=ask' -or $joined -notmatch 'sh install.sh --upgrade') { throw 'Wrong SSH/installation flow' }
-if ($joined -notmatch "--name 'Test Room'") { throw 'Name was not passed to the installer' }
+if ($joined -notmatch '--name-file \.install-name') { throw 'Name was not passed as a UTF-8 file' }
 Write-Host 'WINDOWS_WIZARD_MOCK_PASS'

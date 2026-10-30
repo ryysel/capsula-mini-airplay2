@@ -84,9 +84,15 @@ try {
     $stage = '/root/capsula-airplay-setup-' + [Guid]::NewGuid().ToString('N')
     $archive = Join-Path ([IO.Path]::GetTempPath()) ('capsula-airplay-' + [Guid]::NewGuid().ToString('N') + '.tar.gz')
     $install = 'sh install.sh --upgrade'
-    if ($Name) { $install += ' --name ' + (Quote-Sh $Name) }
+    if ($Name) {
+        # Pass the name as a UTF-8 file: Windows PowerShell 5.1 mangles non-ASCII
+        # characters in native command-line arguments.
+        [IO.File]::WriteAllText((Join-Path $root '.install-name'), $Name, [Text.UTF8Encoding]::new($false))
+        $install += ' --name-file .install-name'
+    }
     try {
-        $items = @('.gitattributes','install.sh','uninstall.sh','SHA256SUMS','bin','etc','build','docs','windows','tests','README.md','NOTICE.md','LICENSE','Install-Windows.cmd')
+        $items = @('.gitattributes','.gitignore','install.sh','uninstall.sh','SHA256SUMS','bin','etc','build','docs','windows','tests','README.md','NOTICE.md','LICENSE','Install-Windows.cmd')
+        if ($Name) { $items += '.install-name' }
         Invoke-Native 'tar.exe' (@('-czf', $archive, '-C', $root) + $items)
         Invoke-Native 'ssh.exe' ($sshOptions + @($target, "umask 077; mkdir $stage"))
         Invoke-Native 'scp.exe' ($scpOptions + @($archive, "${target}:$stage/bundle.tar.gz"))

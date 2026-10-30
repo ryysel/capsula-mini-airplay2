@@ -1,4 +1,5 @@
 2380537ff778f1cfbe32f2dddc1a8438ef92d3c6b4116411993cd6b6c2f8dc17  ./.gitattributes
+47bb434f9c0c572a5a028033eaed2aa7d48a19843a7a106f035d3a0d1c6c8ffb  ./.gitignore
 54d3e2443cd0d754f110df1b206ed5897dde6030045c51ab0abd878190d54448  ./Install-Windows.cmd
 7e6b3f61c789bb205e9f6f14ff3956bc19c638644d61c4572050e18b64fe5848  ./LICENSE
 d84fee8a74482834672b3375bf5055f90aa92cc9ca9e74e50c06621d46b6bd57  ./NOTICE.md
@@ -22,8 +23,8 @@ c1f780b1febcb56d6075911a0577ef3efc4f182437938dbbcd8ad4f3d8337623  ./etc/init.d.a
 77a4afb3833e4bca96a4c46ad507cb534fef28b2b7c27bd202b4721ff48fa1c6  ./etc/init.d.nqptp
 a8ea1fe836d434ab6edaa00f276f44b7565b637c967370e2f6f682ff79e83b9c  ./etc/init.d.shairport-sync
 5629a90dcd8d5bc1fc396bd21e2efd630a230ba400ae0964e0cb84aabd15f93b  ./etc/shairport-sync.conf
-06a7fb0ec771ef505ac8fdc6c9ae858d7794b7d1b07795dd266837f26a35f19d  ./install.sh
-3efeccba56fa105fa3246d2a77a2876bec99ed9e4db7f10974ddd5ccb04c8aba  ./tests/Test-Wizard.ps1
+5dad091d915eea60ef22601060cba55cbad838c29858964a367e0a461b9f1391  ./install.sh
+d9bd8e80a4aa44a1953000d7234e02a2df66531ac5910bb81824507d7dab5b93  ./tests/Test-Wizard.ps1
 03cf85c0dfbb155558d161cab24706cebcba0d937bc5ce930c27c3130c40d7aa  ./tests/test-install.sh
 4793f1cc1340ea239f44b601e710320de24f3a750f2b0ae35558b28a44fc7c1c  ./uninstall.sh
-80a0ae05a0d8ff6cd3e57917d235c50d14f0dfe17857459e7ed15cfca70c39b2  ./windows/Install-AirPlay.ps1
+575d6f8ac87ca0c2eaeef7586b711aad62d8e6e68a59c903102209d6696a2bd3  ./windows/Install-AirPlay.ps1

@@ -15,6 +15,7 @@ while [ "$#" -gt 0 ]; do
         --check) check=yes ;;
         --hostname) name_mode=hostname ;;
         --name) shift; [ "$#" -gt 0 ] || exit 2; name=$1; name_mode=custom ;;
+        --name-file) shift; [ "$#" -gt 0 ] || exit 2; name_file=$1; name_mode=file ;;
         --*) echo "Unknown option: $1" >&2; exit 2 ;;
         *) [ "$name_mode" = preserve ] || exit 2; name=$1; name_mode=custom ;;
     esac
@@ -29,6 +30,11 @@ sha256sum -c SHA256SUMS || die 'Bundle checksum verification failed'
 [ -s /etc/asound.conf ] || die 'Configure ALSA default first; /etc/asound.conf is missing'
 [ -d /dev/snd ] || die 'No ALSA device found'
 conf=/etc/shairport-sync.conf
+if [ "$name_mode" = file ]; then
+    [ -f "$name_file" ] || die "Name file not found: $name_file"
+    name=$(cat "$name_file")
+    name_mode=custom
+fi
 if [ "$name_mode" = hostname ] || { [ "$name_mode" = preserve ] && [ ! -e "$conf" ]; }; then
     name=$(cat /etc/hostname) || die 'Cannot read /etc/hostname'
     name_mode=hostname
