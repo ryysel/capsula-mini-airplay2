@@ -7,7 +7,8 @@ param(
     [int]$Port = 0,
     [string]$KeyFile,
     [string]$Name,
-    [switch]$Yes
+    [switch]$Yes,
+    [switch]$DiscoverOnly
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -21,6 +22,36 @@ function Invoke-Native([string]$Program, [string[]]$Arguments) {
 function Quote-Sh([string]$Value) {
     # POSIX single-quote for the remote shell.
     return "'" + $Value.Replace("'", "'\''") + "'"
+}
+function Test-TcpPort([string]$Address, [int]$TcpPort) {
+    $client = New-Object System.Net.Sockets.TcpClient
+    try {
+        $task = $client.ConnectAsync($Address, $TcpPort)
+        if ($task.Wait(350) -and $client.Connected) { return $true }
+    } catch { return $false }
+    finally { $client.Close() }
+    return $false
+}
+function Get-CapsulaCandidates {
+    # USB gadget address used by the Capsula images, then hosts already in the
+    # ARP cache that answer on the SSH port. No subnet sweep, no port scan of
+    # hosts the PC has not talked to.
+    $addresses = New-Object System.Collections.Generic.List[string]
+    $addresses.Add('192.168.14.14')
+    try {
+        foreach ($line in (& arp.exe -a 2>$null)) {
+            if ($line -match '\b(\d{1,3}(?:\.\d{1,3}){3})\b') { $addresses.Add($Matches[1]) }
+        }
+    } catch { }
+    $seen = @{}
+    $result = New-Object System.Collections.Generic.List[string]
+    foreach ($address in $addresses) {
+        if ($seen.ContainsKey($address)) { continue }
+        $seen[$address] = $true
+        if ($address -match '^(0\.|127\.|169\.254\.|22[4-9]\.|23[0-9]\.|255\.)') { continue }
+        if (Test-TcpPort $address 22) { $result.Add($address) }
+    }
+    return $result
 }
 try {
     Write-Host 'Установка AirPlay 2 — Капсула Мини / Alpine 3.24 / aarch64' -ForegroundColor Cyan
@@ -42,8 +73,25 @@ try {
     }
     Write-Host 'Контрольные суммы комплекта совпали.' -ForegroundColor Green
     if ($ValidateOnly) { Write-Host 'VALIDATION_PASS (no network or installation)'; exit 0 }
+    if ($DiscoverOnly) {
+        $found = Get-CapsulaCandidates
+        if ($found.Count -eq 0) { Write-Host 'NOT_FOUND' } else { $found | ForEach-Object { Write-Host $_ } }
+        exit 0
+    }
 
-    if (-not $HostName) { $HostName = (Read-Host 'IP-адрес или hostname колонки в локальной сети (без порта)').Trim() }
+    if (-not $HostName) {
+        Write-Host 'Поиск колонки: USB-адрес и устройства из ARP с открытым SSH...'
+        $found = Get-CapsulaCandidates
+        if ($found.Count -gt 0) {
+            Write-Host 'Найдены кандидаты:'
+            for ($i = 0; $i -lt $found.Count; $i++) { Write-Host ("  [{0}] {1}" -f ($i + 1), $found[$i]) }
+            $answer = (Read-Host 'Номер или адрес колонки [Enter = ввести вручную]').Trim()
+            if ($answer -match '^\d+$' -and [int]$answer -ge 1 -and [int]$answer -le $found.Count) {
+                $HostName = $found[([int]$answer - 1)]
+            } elseif ($answer -ne '') { $HostName = $answer }
+        }
+        if (-not $HostName) { $HostName = (Read-Host 'IP-адрес или hostname колонки (без порта)').Trim() }
+    }
     if ($HostName -notmatch '^[A-Za-z0-9][A-Za-z0-9.-]{0,252}$') { throw 'Invalid address' }
     if ($Port -eq 0) {
         $portText = Read-Host 'Порт SSH [Enter = 22]'
