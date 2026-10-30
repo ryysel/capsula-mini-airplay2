@@ -29,7 +29,7 @@ if [ "$was_active" != 1 ]; then
     if [ "$active" = 1 ]; then
         master=$("$IPC" GET 2>/dev/null | awk '{print $2}')
         case "$master" in ''|*[!0-9]*) master=50 ;; esac
-        echo $((now + 3)) > "$STATE_DIR/ap2-volume.suppress"
+        echo $((now + 1)) > "$STATE_DIR/ap2-volume.suppress"
         "$CTL" percent "$master" >/dev/null 2>&1 || true
         printf '1 %s\n' "$master" > "$STATE"
         exit 0

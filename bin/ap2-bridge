@@ -27,14 +27,14 @@ step() {
     if [ "$active" = 1 ]; then
         if [ "$was_active" = 0 ]; then
             # New session: the speaker's level wins over the sender's slider.
-            echo $((now + 3)) > "$STATE_DIR/ap2-volume.suppress"
+            echo $((now + 1)) > "$STATE_DIR/ap2-volume.suppress"
             "$CTL" percent "$master" >/dev/null 2>&1 || true
             last_master=$master
         elif [ "$master" != "$last_master" ]; then
             phone=$(cat "$STATE_DIR/ap2-volume.phone" 2>/dev/null || echo 0)
             case "$phone" in ''|*[!0-9]*) phone=0 ;; esac
             if [ $((now - phone)) -gt 2 ]; then
-                echo $((now + 2)) > "$STATE_DIR/ap2-volume.suppress"
+                echo $((now + 1)) > "$STATE_DIR/ap2-volume.suppress"
                 "$CTL" percent "$master" >/dev/null 2>&1 || true
             fi
             last_master=$master

@@ -1,9 +1,8 @@
 shairport-source 0a34fbda83724cc06266aadcf7c88acc8fef4e7d
-patches shared-controls.patch dacp-ipv4-discovery.patch preplay-event-channel.patch
-local model AudioAccessory5,1
-local fix ATOMIC_VAR_INIT removed for C23/gcc15
+patches shared-controls dacp-ipv4-discovery preplay-event-channel
+local pre-play command_set_volume hook; model AudioAccessory5,1; C23 atomic init fix
 5.6.2-dirty-AirPlay2-smi11-OpenSSL-Avahi-ALSA-soxr-metadata-dbus-sysconfdir:/etc
-	/lib/ld-musl-aarch64.so.1 (0x7405e8480000)
+	/lib/ld-musl-aarch64.so.1 (0x7fcb54a30000)
 	libuuid.so.1 => /usr/lib/libuuid.so.1 (0x400001a36000)
 	libgcrypt.so.20 => /usr/lib/libgcrypt.so.20 (0x400001a57000)
 	libsodium.so.26 => /usr/lib/libsodium.so.26 (0x400001b6d000)
@@ -19,7 +18,7 @@ local fix ATOMIC_VAR_INIT removed for C23/gcc15
 	libconfig.so.15 => /usr/lib/libconfig.so.15 (0x4000025f5000)
 	libpopt.so.0 => /usr/lib/libpopt.so.0 (0x400002616000)
 	libgcc_s.so.1 => /usr/lib/libgcc_s.so.1 (0x400002637000)
-	libc.musl-aarch64.so.1 => /lib/ld-musl-aarch64.so.1 (0x7405e8480000)
+	libc.musl-aarch64.so.1 => /lib/ld-musl-aarch64.so.1 (0x7fcb54a30000)
 	libgpg-error.so.0 => /usr/lib/libgpg-error.so.0 (0x400002668000)
 	libgmodule-2.0.so.0 => /usr/lib/libgmodule-2.0.so.0 (0x4000026a9000)
 	libz.so.1 => /usr/lib/libz.so.1 (0x4000026ca000)
@@ -31,4 +30,4 @@ local fix ATOMIC_VAR_INIT removed for C23/gcc15
 	libgomp.so.1 => /usr/lib/libgomp.so.1 (0x4000028f1000)
 	libblkid.so.1 => /usr/lib/libblkid.so.1 (0x400002952000)
 	libeconf.so.0 => /usr/lib/libeconf.so.0 (0x400002993000)
-db9ce62e5e1d887384689a2db004fe80ce8436c76a61ae5086ef13b658a9173e  /work/ctl-out/shairport-sync
+aa57cfee8338ead9aaac53c138107033ba1a31f731d5f95be2148b5d898ef3bc  /work/ctl-out2/shairport-sync
