@@ -1,0 +1,18 @@
+#!/sbin/openrc-run
+# Album-art colours on the ring while an AirPlay session is live.
+# The stock capsule-tweaker keeps ownership: this only overlays a cover.
+
+name="capsula-art"
+description="AirPlay album-art colours on the ring"
+
+command="/usr/local/bin/capsula-art"
+command_background="yes"
+pidfile="/run/capsula-art.pid"
+output_log="/tmp/capsula-art.log"
+error_log="/tmp/capsula-art.log"
+
+depend() {
+	need localmount
+	after capsule-controls
+	before shairport-sync
+}

@@ -1,0 +1,22 @@
+#!/bin/sh
+# The Capsula Mini top button wakes the assistant. While an AirPlay sender is
+# connected the same press is play/pause, which is the Mini's equivalent of the
+# palm gesture on the 2019 speaker. Everything else is the stock path.
+set -eu
+BASE=/usr/local/bin
+
+if [ "$("$BASE/ap2ctl" active 2>/dev/null || echo 0)" = 1 ]; then
+    state=$(wget -qO- --timeout=2 http://127.0.0.1:8100/api/ring/state 2>/dev/null || true)
+    case "$state" in
+    *'"state":"idle"'* | "")
+        if [ "$("$BASE/ap2ctl" playing 2>/dev/null || echo 0)" = 1 ]; then
+            exec "$BASE/ap2ctl" pause
+        fi
+        exec "$BASE/ap2ctl" play
+        ;;
+    esac
+fi
+if [ -x "$BASE/marusya-wake.stock" ]; then
+    exec "$BASE/marusya-wake.stock" "$@"
+fi
+exec rc-service marusya-agent wake
