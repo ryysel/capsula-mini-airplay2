@@ -163,33 +163,169 @@ cd shairport-sync-5.6.2
 sed -i 's/config.model = strdup("ShairportSync");/config.model = strdup("AudioAccessory5,1");/' shairport.c
 grep -q 'config.model = strdup("AudioAccessory5,1");' shairport.c
 
-# Local patch: the stock PulseAudio backend has no volume callback, so AirPlay
-# volume only scaled the samples and the speaker's own knob stayed separate.
-# Make the AirPlay volume drive the PulseAudio sink volume instead.
-if ! grep -q 'airplay_volume_to_sink' audio_pa.c; then
-    sed -i 's|#include <errno.h>|#include <errno.h>\n#include <math.h>|' audio_pa.c
-    sed -i 's|^audio_output audio_pa = {|static void airplay_volume_to_sink(double vol);\n\naudio_output audio_pa = {|' audio_pa.c
-    sed -i 's|\.volume = NULL,|.volume = airplay_volume_to_sink,|' audio_pa.c
+# Local patch: on the VK Capsula 2019 the speaker volume is Marusya's own
+# value (voice-agent: a 0..100 integer that drives the PulseAudio `master`
+# sink, the LED indicator, the saved settings and the VK cloud state). Writing
+# the sink directly only creates a second, independent gain. So the AirPlay
+# volume is forwarded to stereoctl as OnSetVolumeRequest and applied natively.
+if ! grep -q 'capsula_airplay_volume' audio_pa.c; then
+    sed -i 's|#include <errno.h>|#include <errno.h>\n#include <math.h>\n#include <sys/socket.h>\n#include <sys/un.h>\n#include "rtsp.h"\n#include "ap2_event_receiver.h"\n#include "utilities/structured_buffer.h"\n#include <plist/plist.h>|' audio_pa.c
+    sed -i 's|^audio_output audio_pa = {|static void capsula_airplay_volume(double vol);\nstatic output_parameters_t *capsula_volume_parameters(void);\n\naudio_output audio_pa = {|' audio_pa.c
+    sed -i 's|\.volume = NULL,|.volume = capsula_airplay_volume,|' audio_pa.c
+    sed -i 's|\.parameters = NULL,|.parameters = capsula_volume_parameters,|' audio_pa.c
     cat >> audio_pa.c <<'PATCH'
 
-// Local patch (capsula-2019 package): the AirPlay volume sets the PulseAudio
-// sink volume, so the phone slider and the speaker volume are one control.
-static void airplay_volume_to_sink(double vol) {
-  if (mainloop == NULL || context == NULL)
+// ---- capsula-2019 volume bridge -------------------------------------------
+// The speaker volume is voice-agent's own 0..100 value: it drives the
+// PulseAudio `master` sink, the LED ring, the saved settings and the cloud
+// state. Shairport therefore never touches the sink. It forwards the AirPlay
+// volume to stereoctl as OnSetVolumeRequest (uint16 LE type + msgpack over a
+// SOCK_SEQPACKET socket) and voice-agent applies it natively. The same socket
+// is watched so that a change made with the speaker's buttons is reported back
+// to the AirPlay sender.
+static int capsula_vol_sock = -1;
+static int capsula_last_sent = -1;
+static int capsula_last_notified = -1;
+
+static int capsula_vol_connect(void) {
+  int fd = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+  if (fd < 0)
+    return -1;
+  struct sockaddr_un sa;
+  memset(&sa, 0, sizeof(sa));
+  sa.sun_family = AF_UNIX;
+  strncpy(sa.sun_path, "/tmp/stereoctl.sock", sizeof(sa.sun_path) - 1);
+  if (connect(fd, (struct sockaddr *)&sa, sizeof(sa)) != 0) {
+    close(fd);
+    return -1;
+  }
+  return fd;
+}
+
+static void capsula_marusya_set_volume(int v) {
+  // Type 7 is OnSetVolumeRequest; a msgpack positive fixint is one byte.
+  unsigned char frame[3] = {0x07, 0x00, 0x00};
+  if (v < 0)
+    v = 0;
+  if (v > 100)
+    v = 100;
+  frame[2] = (unsigned char)v;
+  if (capsula_vol_sock < 0)
+    capsula_vol_sock = capsula_vol_connect();
+  if (capsula_vol_sock < 0)
     return;
-  double linear = pow(10.0, vol / 20.0);
-  if (linear < 0.0)
-    linear = 0.0;
-  if (linear > 1.0)
-    linear = 1.0;
-  pa_threaded_mainloop_lock(mainloop);
-  pa_cvolume cv;
-  pa_cvolume_set(&cv, 2, pa_sw_volume_from_linear(linear));
-  pa_operation *o = pa_context_set_sink_volume_by_name(
-      context, config.pa_sink ? config.pa_sink : "@DEFAULT_SINK@", &cv, NULL, NULL);
-  if (o)
-    pa_operation_unref(o);
-  pa_threaded_mainloop_unlock(mainloop);
+  if (send(capsula_vol_sock, frame, sizeof(frame), 0) != (ssize_t)sizeof(frame)) {
+    close(capsula_vol_sock);
+    capsula_vol_sock = -1;
+    return;
+  }
+  capsula_last_sent = v;
+}
+
+// Mirrors ap2_event_send_unit_volume_notification() from remote/remote.c,
+// which is not compiled in this build (no metadata support).
+static ssize_t capsula_send_unit_volume(rtsp_conn_info *conn, double volume) {
+  ssize_t result = -1;
+  if ((volume >= 0.0) && (volume <= 1.0)) {
+    structured_buffer *sbuf = sbuf_new(4096);
+    if (sbuf != NULL) {
+      pthread_cleanup_push(sbuf_cleanup, sbuf);
+      plist_t params_plist = plist_new_dict();
+      plist_dict_set_item(params_plist, "volume", plist_new_real(volume));
+      plist_t request_plist = plist_new_dict();
+      plist_dict_set_item(request_plist, "value", plist_new_string("dvlc"));
+      plist_dict_set_item(request_plist, "volume", plist_new_real(volume));
+      plist_dict_set_item(request_plist, "type", plist_new_string("sendMediaRemoteCommand"));
+      plist_dict_set_item(request_plist, "params", params_plist);
+      char *plistString = NULL;
+      uint32_t plistStringLength = 0;
+      plist_to_bin(request_plist, &plistString, &plistStringLength);
+      if (plistString != NULL) {
+        sbuf_printf(sbuf, "POST /command RTSP/1.0\r\nContent-Length: %u\r\n",
+                    plistStringLength);
+        sbuf_printf(sbuf, "Content-Type: application/x-apple-binary-plist\r\n\r\n");
+        sbuf_append(sbuf, plistString, plistStringLength);
+        free(plistString);
+        char *b = 0;
+        size_t l = 0;
+        sbuf_buf_and_length(sbuf, &b, &l);
+        result = ap2_event_port_send_message(conn, b, l);
+        sbuf_clear(sbuf);
+      }
+      plist_free(request_plist);
+      pthread_cleanup_pop(1);
+    }
+  }
+  return result;
+}
+
+static void capsula_vol_reader_handle(int v) {
+  if ((v < 0) || (v > 100))
+    return;
+  if ((v == capsula_last_sent) || (v == capsula_last_notified))
+    return; // our own echo, or an already reported value
+  capsula_last_notified = v;
+  capsula_last_sent = v;
+  double unit = (double)v / 100.0;
+  pthread_rwlock_rdlock(&principal_conn_lock);
+  rtsp_conn_info *conn = principal_conn;
+  if ((conn != NULL) && (conn->airplay_type == ap_2)) {
+    debug(2, "capsula volume: speaker %d -> sender unit volume %.3f", v, unit);
+    capsula_send_unit_volume(conn, unit);
+  }
+  pthread_rwlock_unlock(&principal_conn_lock);
+}
+
+static void *capsula_vol_reader(__attribute__((unused)) void *arg) {
+  for (;;) {
+    int fd = capsula_vol_connect();
+    if (fd < 0) {
+      sleep(1);
+      continue;
+    }
+    for (;;) {
+      unsigned char buf[256];
+      ssize_t n = recv(fd, buf, sizeof(buf), 0);
+      if (n <= 0)
+        break;
+      // broadcast frame: uint16 type 9, msgpack array [volume, remote]
+      if ((n >= 4) && (buf[0] == 0x09) && (buf[1] == 0x00) && (buf[2] == 0x92)) {
+        if (buf[3] <= 0x7f)
+          capsula_vol_reader_handle((int)buf[3]);
+        else if (buf[3] >= 0xe0)
+          capsula_vol_reader_handle((int)buf[3] - 256);
+      }
+    }
+    close(fd);
+    sleep(1);
+  }
+  return NULL;
+}
+
+__attribute__((constructor)) static void capsula_vol_reader_start(void) {
+  pthread_t thread;
+  if (pthread_create(&thread, NULL, capsula_vol_reader, NULL) == 0)
+    pthread_detach(thread);
+}
+
+static output_parameters_t *capsula_volume_parameters(void) {
+  static volume_range_t range = {-3000, 0};
+  static output_parameters_t parameters = {&range};
+  return &parameters;
+}
+
+static void capsula_airplay_volume(double vol) {
+  // 'vol' is the attenuation in centi-dB, 0 being the maximum. The senders
+  // map their slider position u to dB with 30*log10(u), so invert that: the
+  // speaker then shows the same percentage as the phone.
+  double db = vol / 100.0;
+  int v = (int)lround(100.0 * pow(10.0, db / 30.0));
+  if (v < 0)
+    v = 0;
+  if (v > 100)
+    v = 100;
+  debug(2, "capsula volume: sender %.2f dB -> speaker %d", db, v);
+  capsula_marusya_set_volume(v);
 }
 PATCH
 fi

@@ -7,7 +7,9 @@
 #   /data/local/capsula-airplay/init.d/{nqptp,shairport-sync}
 #   /data/local/bin/capsula-boot
 #   /data/local/capsula-boot.d/30-airplay.sh
-# and adds a late-boot hook to the overlay copy of /usr/bin/voice-agent.sh.
+# adds a late-boot hook to the overlay copy of /usr/bin/voice-agent.sh and
+# patches voice-agent so that the AirPlay volume is applied natively (see
+# voice-agent-volume-patch.sh).
 #
 # The firmware has no awk/sed/install: only busybox sh, cp, mv, chmod, grep.
 #
@@ -61,19 +63,25 @@ if [ -n "$name" ]; then
     {
         printf '%s\n' \
             '// AirPlay 2 receiver for VK Капсула 2019 (RK3308, Buildroot, glibc).' \
-            '// Audio goes to PulseAudio, the same sound server voice-agent uses.' \
+            '// The AirPlay volume is applied natively by voice-agent via stereoctl;' \
+            '// volume_range_db must stay within its 30 dB hardware range.' \
             '' \
             'general = {' \
             "	name = \"$name\";" \
             '	output_backend = "pulseaudio";' \
             '	port = 7000;' \
             '	interpolation = "basic";' \
-            '	volume_range_db = 60.0;' \
+            '	volume_range_db = 30.0;' \
             '	audio_backend_buffer_desired_length_in_seconds = 0.2;' \
             '};' \
             '' \
+            'diagnostics = {' \
+            '	log_verbosity = 2;' \
+            '};' \
+            '' \
             'pulseaudio = {' \
-            '	// Empty: use the default PulseAudio sink.' \
+            '	// voice-agent owns the volume of the "master" sink.' \
+            '	output_device = "master";' \
             '};'
     } > "$DEST/etc/shairport-sync.conf"
     chmod 0644 "$DEST/etc/shairport-sync.conf"
@@ -99,6 +107,12 @@ if ! grep -q 'capsula-boot' "$WRAP"; then
     mv -f "$WRAP.new" "$WRAP"
     chmod 0755 "$WRAP"
 fi
+
+echo "== voice-agent volume patch"
+# Applied but inert until voice-agent is restarted; the wrapper and the overlay
+# binary are picked up on the next boot, so the installation ends with one.
+sh ./voice-agent-volume-patch.sh
+
 sync
 
 echo "== starting services"
@@ -112,5 +126,6 @@ netstat -ln 2>/dev/null | grep -E ':(7000|319|320) ' || true
 
 echo
 echo "AirPlay name: $(grep -m1 'name = ' "$DEST/etc/shairport-sync.conf" | cut -d'"' -f2)"
-echo "Reboot once so the boot hook is picked up by the voice-agent wrapper."
+echo "Reboot once: the boot hook and the patched voice-agent are picked up then,"
+echo "and from that point the phone slider and the speaker buttons share one volume."
 echo INSTALL_PASS

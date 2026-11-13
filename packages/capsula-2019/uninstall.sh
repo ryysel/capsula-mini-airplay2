@@ -1,11 +1,13 @@
 #!/bin/sh
-# Remove the AirPlay 2 receiver for VK Капсула 2019.
+# Remove the AirPlay 2 receiver for VK Капсула 2019 and the voice-agent volume
+# patch.
 # No awk/sed on this firmware: the wrapper is filtered line by line in sh.
 set -eu
 
 BASE=/data/local
 DEST=$BASE/capsula-airplay
 WRAP=/data/overlay/upper/usr/bin/voice-agent.sh
+VA=/data/overlay/upper/usr/bin/voice-agent
 
 uid=$(grep '^Uid:' /proc/self/status | cut -f2)
 test "$uid" = 0 || { echo "Run as root on the capsule." >&2; exit 1; }
@@ -28,7 +30,15 @@ if [ -f "$WRAP" ] && grep -q 'capsula-boot' "$WRAP"; then
     mv -f "$WRAP.new" "$WRAP"
     chmod 0755 "$WRAP"
 fi
+
+# The patched voice-agent only exists in the overlay; removing it restores the
+# stock binary from the read-only squashfs on the next boot.
+if [ -f "$VA" ]; then
+    rm -f "$VA"
+    echo "voice-agent: volume patch removed"
+fi
+
 sync
 
-echo "Removed. Reboot to fully restore the stock voice-agent wrapper."
+echo "Removed. Reboot to restore the stock voice-agent and wrapper."
 echo UNINSTALL_PASS

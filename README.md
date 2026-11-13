@@ -42,10 +42,22 @@ sh install.sh "Кухня"      # своё имя в AirPlay
 | `/data/local/capsula-airplay/init.d/{nqptp,shairport-sync}` | start/stop/restart |
 | `/data/local/bin/capsula-boot` | запуск поздних хуков |
 | `/data/local/capsula-boot.d/30-airplay.sh` | хук автозапуска |
+| `/data/overlay/upper/usr/bin/voice-agent` | копия `voice-agent` с патчем громкости |
 
-Звук идёт в **PulseAudio** — тот же сервер, что использует `voice-agent`.
-Громкость у приёмника своя (программная), поэтому ползунок телефона не
-переписывает системный микшер.
+Звук идёт в **PulseAudio**, в тот же sink `master`, которым управляет
+`voice-agent`. Громкость у колонки одна — это собственное значение
+`voice-agent` (0–100): оно двигает sink, кольцо-индикатор, сохранённые
+настройки и состояние в приложении VK. Приёмник не трогает sink сам, а
+передаёт громкость AirPlay в `stereoctl` сообщением `OnSetVolumeRequest` —
+`voice-agent` применяет её нативно. В обратную сторону, когда громкость
+меняют кнопками колонки, `shairport-sync` сообщает новое значение
+отправителю, поэтому ползунок на телефоне едет вместе с кольцом.
+
+Для этого нужен патч `voice-agent` (`voice-agent-volume-patch.sh`). В стоке
+обработчик `OnVolumeChangedEvent` применяет событие только с флагом `remote`,
+а всё, что приходит через локальный сокет `stereoctl`, помечено `remote=0`.
+Патч заменяет две проверки на «всегда истина» (8 байт) в копии бинаря в
+оверлее; сток в squashfs не меняется, откат — удалить файл.
 
 **Автозапуск.** Штатный `rcS` разворачивает `/etc/init.d/S??*` до того, как
 `S23overlayfs.sh` смонтирует оверлей, поэтому новые `S*`-скрипты в оверлее
@@ -72,8 +84,25 @@ ss -lunp | grep -E ':(319|320) '
 
 ```sh
 pidof nqptp shairport-sync
-logread | grep shairport
-/data/local/capsula-airplay/init.d/shairport-sync restart
+/data/local/capsula-airplay/init.d/shairport-sync status
+netstat -ln | grep 7000
+```
+
+Единая громкость проверяется так: значение `voice-agent` и громкость sink
+должны меняться вместе, а ползунок телефона — следовать за кнопками колонки.
+
+```sh
+grep master_volume /data/voice-agent/device_settings.json
+pactl get-sink-volume master
+```
+
+Вывод `shairport-sync` в syslog в этой сборке отключён. Подробный лог — только
+ручным запуском (службу на это время остановить):
+
+```sh
+/data/local/capsula-airplay/init.d/shairport-sync stop
+/data/local/capsula-airplay/bin/shairport-sync \
+    --configfile=/data/local/capsula-airplay/etc/shairport-sync.conf -v
 ```
 
 Мини:
@@ -94,7 +123,10 @@ avahi-browse -rt _airplay._tcp
 - `name` — имя в AirPlay;
 - `port` — RTSP-порт (по умолчанию 7000);
 - `output_backend` — `pulseaudio` на 2019, `alsa` на Мини;
-- `volume_range_db` — диапазон программной громкости.
+- `volume_range_db` — диапазон громкости, по умолчанию 30 дБ. Не поднимать
+  выше 30: при большем значении `shairport-sync` переходит в режим
+  «software priority» и отдаёт в колонку 0 дБ (полную громкость), гася
+  звук программно — ползунок телефона перестаёт влиять на колонку.
 
 После правки: `init.d/shairport-sync restart` (2019) или
 `rc-service shairport-sync restart` (Мини).
@@ -125,7 +157,8 @@ libavahi-client, libpulse, libuuid, libssl/libcrypto, которые уже ес
 
 ## Откат
 
-- 2019: `sh packages/capsula-2019/uninstall.sh`, затем перезагрузка.
+- 2019: `sh packages/capsula-2019/uninstall.sh`, затем перезагрузка
+  (удаляет и патч `voice-agent`, возвращая сток).
 - Мини: `sh packages/mini-a113x/uninstall.sh`.
 
 ## Ограничения
@@ -136,6 +169,10 @@ libavahi-client, libpulse, libuuid, libssl/libcrypto, которые уже ес
   незаметно; при включении OTA пакет нужно пересобрать.
 - AirPlay 2 и `voice-agent` делят один звуковой сервер: во время AirPlay
   голосовые ответы Маруси будут звучать поверх/вместо музыки.
+- Патч `voice-agent` привязан к прошивке 44.90: установщик сверяет
+  SHA-256 стокового бинаря и отказывается патчить незнакомую сборку.
+  После установки или обновления пакета нужна одна перезагрузка —
+  оверлей и патченный `voice-agent` подхватываются при старте.
 - Холодная загрузка 2019 с автозапуском проверяется отдельно (см. журнал
   проекта).
 
