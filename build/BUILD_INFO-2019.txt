@@ -1,11 +1,29 @@
 target: VK Capsula 2019 (RK3308, Buildroot 2022.11, glibc 2.33, aarch64)
 toolchain: 10 / bullseye glibc 2.31
---- NEEDED (shairport-sync) ---
-  libm.so.6  libuuid.so.1  libpulse.so.0  libavahi-common.so.3
-  libavahi-client.so.3  libcrypto.so.1.1  libpthread.so.0  librt.so.1
-  libgcc_s.so.1  libc.so.6  ld-linux-aarch64.so.1
+aarch64-binfmt-P: Could not open '/lib/ld-linux-aarch64.so.1': No such file or directory
+--- NEEDED ---
+  NEEDED               libm.so.6
+  NEEDED               libuuid.so.1
+  NEEDED               libpulse.so.0
+  NEEDED               libavahi-common.so.3
+  NEEDED               libavahi-client.so.3
+  NEEDED               libcrypto.so.1.1
+  NEEDED               libpthread.so.0
+  NEEDED               librt.so.1
+  NEEDED               libgcc_s.so.1
+  NEEDED               libc.so.6
+  NEEDED               ld-linux-aarch64.so.1
 --- max GLIBC symbol versions ---
+GLIBC_2.25
+GLIBC_2.27
+GLIBC_2.28
 GLIBC_2.29
---- sha256 ---
-69df0f958dcadc641da8c5514e98b38033215ee7482d62236b6bcbb04a0f04cb  shairport-sync
+--- sizes ---
+total 7724
+-rw-r--r-- 1 root root     727 Nov 13 12:40 BUILD_INFO.txt
+-rwxr-xr-x 1 root root  742992 Nov 13 09:06 capsula-led-media
+-rwxr-xr-x 1 root root 4043594 Nov 13 12:38 capsula-ui
+-rwxr-xr-x 1 root root   35200 Nov 13 12:40 nqptp
+-rwxr-xr-x 1 root root 3072688 Nov 13 12:40 shairport-sync
+3d344089ab3de041d9103125e6bf1f7bbba29c7b9444e9fd39cd824534bc395f  shairport-sync
 8a9ac4999efe61ca7d84556fefeeb3e8facf005e48321aee6be3c6654b5ff3b0  nqptp

@@ -160,8 +160,11 @@ log "shairport-sync 5.6.2 (AirPlay 2, PulseAudio, avahi, openssl)"
 get https://github.com/mikebrady/shairport-sync/archive/refs/tags/5.6.2.tar.gz sps-5.6.2.tar.gz
 [ -d shairport-sync-5.6.2 ] || tar xf sps-5.6.2.tar.gz
 cd shairport-sync-5.6.2
-sed -i 's/config.model = strdup("ShairportSync");/config.model = strdup("AudioAccessory5,1");/' shairport.c
-grep -q 'config.model = strdup("AudioAccessory5,1");' shairport.c
+# HomePod (1,1) is the tall speaker icon; 5,1 is the small round HomePod mini.
+# The source tree may already carry a model from an earlier build, so replace
+# whatever is there instead of only the upstream default.
+sed -i 's/config.model = strdup("[^"]*");/config.model = strdup("AudioAccessory1,1");/' shairport.c
+grep -q 'config.model = strdup("AudioAccessory1,1");' shairport.c
 
 # Local patch: on the VK Capsula 2019 the speaker volume is Marusya's own
 # value (voice-agent: a 0..100 integer that drives the PulseAudio `master`
@@ -329,13 +332,21 @@ static void capsula_airplay_volume(double vol) {
 }
 PATCH
 fi
-[ -f configure ] || run autoreconf /tmp/sps.log autoreconf -fi
+# Local-only media endpoint, using the upstream AP2 transport implementation.
+cp /work/build/capsula-media-control.c capsula-media-control.c
+if ! grep -q capsula-media-control.c Makefile.am; then
+    printf '\nshairport_sync_SOURCES += remote/remote.c capsula-media-control.c\n' >> Makefile.am
+fi
+if ! grep -q 'capsula_media_control_start();' audio_pa.c; then
+    sed -i '/static int init(__attribute__((unused))/a\  extern void capsula_media_control_start(void);\n  capsula_media_control_start();' audio_pa.c
+fi
+run autoreconf /tmp/sps.log autoreconf -fi
 # libgcrypt is static here and needs libgpg-error symbols at link time.
 export LIBS="-lgpg-error"
 run configure /tmp/sps.log ./configure --host=aarch64-linux-gnu --prefix=/usr \
     --sysconfdir=/etc --with-piddir=/run \
     --with-pulseaudio --with-avahi --with-ssl=openssl --with-airplay-2 --with-soxr \
-    --without-metadata --without-dbus
+    --with-metadata --without-dbus
 run make /tmp/sps.log make -j"$JOBS"
 cp shairport-sync "$OUT/shairport-sync"
 cd ..

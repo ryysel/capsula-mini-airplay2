@@ -7,8 +7,10 @@ case "$1" in
     "$DIR/nqptp" start
     sleep 2
     "$DIR/shairport-sync" start
+    "$DIR/capsula-ui" start
     ;;
   stop)
+    "$DIR/capsula-ui" stop
     "$DIR/shairport-sync" stop
     "$DIR/nqptp" stop
     ;;

@@ -20,6 +20,14 @@ name=${1:-}
 root=$(cd "$(dirname "$0")" && pwd)
 cd "$root"
 
+# Validate explicit names before stopping services or changing any files.
+if [ -n "$name" ]; then
+    [ "$#" -eq 1 ] || { echo 'Expected one optional AirPlay name' >&2; exit 1; }
+    case "$name" in --*|*'"'*|*'\'* ) echo 'Invalid AirPlay name' >&2; exit 1;; esac
+    [ "$(printf '%s' "$name" | wc -c)" -le 50 ] || { echo 'Name exceeds 50 UTF-8 bytes' >&2; exit 1; }
+    [ "$(printf '%s' "$name" | wc -l)" -eq 0 ] || { echo 'Name must be a single line' >&2; exit 1; }
+fi
+
 BASE=/data/local
 DEST=$BASE/capsula-airplay
 WRAP=/data/overlay/upper/usr/bin/voice-agent.sh
@@ -39,8 +47,28 @@ esac
 test -f SHA256SUMS || { echo "SHA256SUMS is missing." >&2; exit 1; }
 sha256sum -c SHA256SUMS > /dev/null
 
+# Back up only package-managed payloads, never account data or firmware.
+BACKUP=$DEST/backups/$(date +%Y%m%d-%H%M%S)-$$
+mkdir -p "$BACKUP"
+for part in bin etc init.d; do
+    [ ! -d "$DEST/$part" ] || cp -a "$DEST/$part" "$BACKUP/$part"
+done
+# Stop the trial/previous package, not voice-agent or the watchdog.
+for p in /var/run/capsula-ui.pid /var/run/capsula-led-media.pid; do
+    if [ -f "$p" ]; then
+        start-stop-daemon -K -p "$p" -s TERM 2>/dev/null || true
+        rm -f "$p"
+    fi
+done
+[ ! -x "$DEST/init.d/shairport-sync" ] || "$DEST/init.d/shairport-sync" stop
+[ ! -x "$DEST/init.d/nqptp" ] || "$DEST/init.d/nqptp" stop
+sleep 1
 mkdir -p "$DEST/bin" "$DEST/etc" "$DEST/init.d" "$BASE/bin" "$BASE/capsula-boot.d"
 
+cp -f bin/capsula-ui "$DEST/bin/capsula-ui"
+cp -f bin/capsula-led-media "$DEST/bin/capsula-led-media"
+cp -f etc/capsula-ui.init "$DEST/init.d/capsula-ui"
+chmod 0755 "$DEST/bin/capsula-ui" "$DEST/bin/capsula-led-media" "$DEST/init.d/capsula-ui"
 cp -f bin/shairport-sync "$DEST/bin/shairport-sync"
 cp -f bin/nqptp "$DEST/bin/nqptp"
 cp -f etc/nqptp.init "$DEST/init.d/nqptp"
@@ -58,34 +86,38 @@ else
     echo "Keeping existing $DEST/etc/shairport-sync.conf"
 fi
 
+# Keep custom settings and edit just the explicitly requested name.
 if [ -n "$name" ]; then
-    # No sed on this firmware: rewrite the whole (short) config from scratch.
-    {
-        printf '%s\n' \
-            '// AirPlay 2 receiver for VK Капсула 2019 (RK3308, Buildroot, glibc).' \
-            '// The AirPlay volume is applied natively by voice-agent via stereoctl;' \
-            '// volume_range_db must stay within its 30 dB hardware range.' \
-            '' \
-            'general = {' \
-            "	name = \"$name\";" \
-            '	output_backend = "pulseaudio";' \
-            '	port = 7000;' \
-            '	interpolation = "basic";' \
-            '	volume_range_db = 30.0;' \
-            '	audio_backend_buffer_desired_length_in_seconds = 0.2;' \
-            '};' \
-            '' \
-            'diagnostics = {' \
-            '	log_verbosity = 2;' \
-            '};' \
-            '' \
-            'pulseaudio = {' \
-            '	// voice-agent owns the volume of the "master" sink.' \
-            '	output_device = "master";' \
-            '};'
-    } > "$DEST/etc/shairport-sync.conf"
-    chmod 0644 "$DEST/etc/shairport-sync.conf"
+    [ "$(printf '%s' "$name" | wc -c)" -le 50 ] || { echo 'Name exceeds 50 UTF-8 bytes' >&2; exit 1; }
+    case "$name" in *'"'*|*'\'* ) echo 'Invalid name' >&2; exit 1;; esac
+    : > "$DEST/etc/shairport-sync.conf.new"
+    while IFS= read -r line || [ -n "$line" ]; do
+        case "$line" in *'name = '*) printf '\tname = "%s";\n' "$name" ;; *) printf '%s\n' "$line" ;; esac
+    done < "$DEST/etc/shairport-sync.conf" > "$DEST/etc/shairport-sync.conf.new"
+    mv "$DEST/etc/shairport-sync.conf.new" "$DEST/etc/shairport-sync.conf"
 fi
+if ! grep -q 'metadata.*=' "$DEST/etc/shairport-sync.conf"; then
+    cat >> "$DEST/etc/shairport-sync.conf" <<'META'
+
+metadata = {
+    enabled = "yes";
+    include_cover_art = "yes";
+    pipe_name = "/tmp/capsula-airplay-metadata";
+    cover_art_cache_directory = "/tmp/capsula-airplay-covers";
+};
+META
+fi
+
+# Do not carry the trial's aggressive latency into the supported package.
+: > "$DEST/etc/shairport-sync.conf.new"
+while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+        *audio_backend_latency_offset_in_seconds*) printf '\taudio_backend_latency_offset_in_seconds = 0.0;\n' ;;
+        *audio_backend_buffer_desired_length_in_seconds*) printf '\taudio_backend_buffer_desired_length_in_seconds = 0.2;\n' ;;
+        *) printf '%s\n' "$line" ;;
+    esac
+done < "$DEST/etc/shairport-sync.conf" > "$DEST/etc/shairport-sync.conf.new"
+mv "$DEST/etc/shairport-sync.conf.new" "$DEST/etc/shairport-sync.conf"
 
 # The stock rcS expands /etc/init.d/S??* before the overlay is mounted, so a
 # new S* script never runs. Hook into the voice-agent wrapper, which starts

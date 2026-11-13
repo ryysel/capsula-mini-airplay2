@@ -71,3 +71,7 @@ libpulse, libuuid, libssl/libcrypto.
 значок как у Mini/Lite. Патч: `build/model-icon.patch` (применяется в обоих
 сборочных скриптах). Суффикс `-dirty` в версии означает эту локальную правку.
 Имя и настройки звука не меняются. iOS может кешировать старый значок.
+
+## Демоны оформления
+
+`capsula-ui`, `capsula-led-media`, `capsula-art`: локальные исходники в `packages/*/src/`, MIT. Go TIFF decoder: `golang.org/x/image v0.24.0`, BSD-3-Clause (лицензия в `licenses/x-image-LICENSE`). Код AP2-команд использует upstream `remote/remote.c`, лицензия upstream сохранена в исходниках. Бинарник штатного `voice-agent` не распространяется: установщик проверяет и патчит локальную копию на устройстве.

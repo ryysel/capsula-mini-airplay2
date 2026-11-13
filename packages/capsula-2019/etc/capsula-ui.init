@@ -1,0 +1,37 @@
+#!/bin/sh
+# Single owner of AirPlay artwork and the clock on the 2019 Capsule.
+BASE=/data/local/capsula-airplay
+UI=$BASE/bin/capsula-ui
+LED=$BASE/bin/capsula-led-media
+stop_pid() {
+    if [ -f "$1" ]; then
+        start-stop-daemon -K -p "$1" -s TERM 2>/dev/null || true
+        rm -f "$1"
+    fi
+}
+case "${1:-}" in
+start)
+    [ -f /var/run/capsula-ui.pid ] && kill -0 "$(cat /var/run/capsula-ui.pid)" 2>/dev/null && exit 0
+    /etc/init.d/S98capsula-led stop >/dev/null 2>&1 || true
+    start-stop-daemon -S -b -m -p /var/run/capsula-ui.pid -x /bin/sh -- -c \
+      'exec /data/local/capsula-airplay/bin/capsula-ui >> /tmp/capsula-ui.log 2>&1'
+    start-stop-daemon -S -b -m -p /var/run/capsula-led-media.pid -x "$LED" -- daemon
+    ;;
+stop)
+    stop_pid /var/run/capsula-ui.pid
+    stop_pid /var/run/capsula-led-media.pid
+    rm -f /tmp/capsula-airplay-frame
+    pactl set-sink-mute purr 0 2>/dev/null || true
+    /etc/init.d/S98capsula-led start >/dev/null 2>&1 || true
+    ;;
+restart) "$0" stop; sleep 1; "$0" start ;;
+status)
+    for name in capsula-ui capsula-led-media; do
+        pidfile=/var/run/$name.pid
+        if [ -f "$pidfile" ] && kill -0 "$(cat "$pidfile")" 2>/dev/null; then
+            echo "$name: running"
+        else echo "$name: stopped"; exit 1; fi
+    done
+    ;;
+*) echo "Usage: $0 {start|stop|restart|status}"; exit 1 ;;
+esac

@@ -1,110 +1,189 @@
 #!/bin/sh
-# Install AirPlay 2 receiver (shairport-sync + nqptp) on Alpine 3.24 / aarch64,
-# together with the album-art ring overlay and the AirPlay-aware wake button.
-# Run from the repository root: sh install.sh ["AirPlay name"]
+# Install the AirPlay 2 receiver (shairport-sync + nqptp) on Alpine 3.24/aarch64.
+# Optional control layer: D-Bus transport and two-way volume through the
+# capsule-tweaker IPC, installed only when the tweaker socket is present.
 set -eu
-
-name=${1:-"Капсула Мини"}
-root=$(cd "$(dirname "$0")" && pwd)
+root=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 cd "$root"
-
-test "$(id -u)" = 0 || { echo "Run as root" >&2; exit 1; }
-test "$(uname -m)" = aarch64 || { echo "Only aarch64 is supported" >&2; exit 1; }
-test -f /etc/alpine-release || { echo "This is not Alpine Linux" >&2; exit 1; }
-case "$(cat /etc/alpine-release)" in
-    3.24*) ;;
-    *) echo "Tested on Alpine 3.24 only, found $(cat /etc/alpine-release)" >&2; exit 1 ;;
-esac
-
-test -f SHA256SUMS || { echo "SHA256SUMS not found" >&2; exit 1; }
-sha256sum -c SHA256SUMS
-
-same_or_absent() {
-    src=$1 dst=$2
-    if [ -e "$dst" ]; then
-        if ! cmp -s "$src" "$dst"; then
-            echo "Refusing to overwrite existing (different): $dst" >&2
-            exit 1
-        fi
-        echo "Already in place: $dst"
-    fi
-}
-same_or_absent bin/shairport-sync        /usr/local/bin/shairport-sync
-same_or_absent bin/nqptp                 /usr/local/sbin/nqptp
-same_or_absent etc/init.d.nqptp          /etc/init.d/nqptp
-same_or_absent etc/init.d.shairport-sync /etc/init.d/shairport-sync
-
-df -Pk / | awk 'NR == 2 { if ($4 < 20000) { print "Not enough free space" > "/dev/stderr"; exit 1 } }'
-
-apk add --no-cache avahi avahi-tools libplist libsodium libgcrypt \
-    libconfig popt soxr libgomp libuuid >/dev/null
-
-mkdir -p /usr/local/bin /usr/local/sbin
-# A running daemon holds its own binary; stop it before the swap so the write
-# cannot fail with "text file busy".
-rc-service capsula-art stop >/dev/null 2>&1 || true
-install -m 0755 bin/shairport-sync /usr/local/bin/shairport-sync
-install -m 0755 bin/nqptp /usr/local/sbin/nqptp
-install -m 0755 bin/capsula-art /usr/local/bin/capsula-art
-install -m 0755 etc/init.d.nqptp /etc/init.d/nqptp
-install -m 0755 etc/init.d.shairport-sync /etc/init.d/shairport-sync
-install -m 0755 etc/init.d.capsula-art /etc/init.d/capsula-art
-
-# A local configuration is kept as .stock and replaced only when it does not
-# yet carry the metadata block, so a reinstall never loses a custom name.
-if [ ! -f /etc/shairport-sync.conf.stock ]; then
-    cp -p /etc/shairport-sync.conf /etc/shairport-sync.conf.stock 2>/dev/null || true
+upgrade=no
+check=no
+name_mode=preserve
+name=
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --upgrade) upgrade=yes ;;
+        --check) check=yes ;;
+        --hostname) name_mode=hostname ;;
+        --name) shift; [ "$#" -gt 0 ] || exit 2; name=$1; name_mode=custom ;;
+        --name-file) shift; [ "$#" -gt 0 ] || exit 2; name_file=$1; name_mode=file ;;
+        --*) echo "Unknown option: $1" >&2; exit 2 ;;
+        *) [ "$name_mode" = preserve ] || exit 2; name=$1; name_mode=custom ;;
+    esac
+    shift
+done
+die() { echo "$*" >&2; exit 1; }
+[ "$(id -u)" = 0 ] || die 'Run as root'
+[ "$(uname -m)" = aarch64 ] || die 'Only aarch64 is supported'
+[ -f /etc/alpine-release ] || die 'Alpine is required'
+case "$(cat /etc/alpine-release)" in 3.24.*|3.24) ;; *) die 'Alpine 3.24 is required' ;; esac
+sha256sum -c SHA256SUMS || die 'Bundle checksum verification failed'
+[ -s /etc/asound.conf ] || die 'Configure ALSA default first; /etc/asound.conf is missing'
+[ -d /dev/snd ] || die 'No ALSA device found'
+conf=/etc/shairport-sync.conf
+if [ "$name_mode" = file ]; then
+    [ -f "$name_file" ] || die "Name file not found: $name_file"
+    name=$(cat "$name_file")
+    name_mode=custom
 fi
-if ! grep -q 'cover_art_cache_directory' /etc/shairport-sync.conf 2>/dev/null; then
-    keep=""
-    if [ -e /etc/shairport-sync.conf ]; then
-        keep=$(sed -n 's/^[[:space:]]*name = "\(.*\)";/\1/p' /etc/shairport-sync.conf | head -1)
-    fi
-    install -m 0644 etc/shairport-sync.conf /etc/shairport-sync.conf
-    if [ -n "$keep" ] && [ "$keep" != "Капсула Мини" ]; then
-        sed -i "s|^\([[:space:]]*name = \).*|\1\"$keep\";|" /etc/shairport-sync.conf
-    fi
+if [ "$name_mode" = hostname ] || { [ "$name_mode" = preserve ] && [ ! -e "$conf" ]; }; then
+    name=$(cat /etc/hostname) || die 'Cannot read /etc/hostname'
+    name_mode=hostname
 fi
-if [ -n "$name" ] && [ "$name" != "Капсула Мини" ]; then
-    sed -i "s|^\([[:space:]]*name = \).*|\1\"$name\";|" /etc/shairport-sync.conf
-fi
-
-# The broker runs marusya-wake on the top button. While a sender is connected
-# the same press is play/pause; otherwise the stock wake path is untouched.
-if [ -x /usr/local/bin/marusya-wake ]; then
-    if [ ! -f /usr/local/bin/marusya-wake.stock ]; then
-        cp -p /usr/local/bin/marusya-wake /usr/local/bin/marusya-wake.stock
+if [ "$name_mode" != preserve ]; then
+    [ -n "$name" ] && [ "$(printf %s "$name" | wc -c)" -le 50 ] || die 'Name must be 1..50 UTF-8 bytes'
+    [ "$(printf %s "$name" | wc -l)" -eq 0 ] || die 'Name must be a single line'
+    if printf %s "$name" | LC_ALL=C grep -q '[[:cntrl:]"\\]'; then
+        die 'Name must not contain control characters, double quotes or backslashes'
     fi
-    install -m 0755 etc/marusya-wake /usr/local/bin/marusya-wake
+    echo "AirPlay name: $name ($name_mode)"
 else
-    echo "marusya-wake not found: skipping the AirPlay-aware button" >&2
+    echo 'Keeping existing AirPlay name and configuration'
 fi
 
+# The control layer needs the tweaker's IPC socket; without it the receiver
+# keeps its own software volume.
+bridge=no
+if [ -S /run/capsule-controls.sock ]; then bridge=yes; fi
+
+# Check every target before changing anything.
+for pair in 'bin/shairport-sync:/usr/local/bin/shairport-sync' \
+            'bin/nqptp:/usr/local/sbin/nqptp' \
+            'bin/capsula-art:/usr/local/bin/capsula-art' \
+            'etc/init.d.capsula-art:/etc/init.d/capsula-art' \
+            'bin/capsule-ipc:/usr/local/bin/capsule-ipc' \
+            'bin/ap2ctl:/usr/local/bin/ap2ctl' \
+            'bin/ap2-volume-sync:/usr/local/bin/ap2-volume-sync' \
+            'bin/ap2-bridge:/usr/local/bin/ap2-bridge' \
+            'etc/init.d.nqptp:/etc/init.d/nqptp' \
+            'etc/init.d.shairport-sync:/etc/init.d/shairport-sync' \
+            'etc/init.d.ap2-bridge:/etc/init.d/ap2-bridge'; do
+    src=${pair%%:*}; dst=${pair#*:}
+    [ ! -L "$dst" ] || die "Refusing symlink: $dst"
+    if [ -e "$dst" ] && ! cmp -s "$src" "$dst" && [ "$upgrade" != yes ]; then
+        die "Different existing file: $dst. Use --upgrade for a backed-up update."
+    fi
+done
+[ ! -L "$conf" ] || die "Refusing symlink: $conf"
+df -Pk / | awk 'NR==2 {if ($4 < 30000) exit 1}' || die 'Need at least 30 MiB free'
+if [ "$check" = yes ]; then echo "PREFLIGHT_PASS bridge=$bridge"; exit 0; fi
+
+backup=$(mktemp -d /root/airplay2-backup-XXXXXXXX)
+chmod 700 "$backup"
+echo "Backup: $backup"
+for path in /usr/local/bin/shairport-sync /usr/local/sbin/nqptp \
+            /usr/local/bin/capsule-ipc /usr/local/bin/ap2ctl \
+            /usr/local/bin/ap2-volume-sync /usr/local/bin/ap2-bridge \
+            /etc/shairport-sync.conf /etc/init.d/nqptp \
+            /etc/init.d/shairport-sync /etc/init.d/ap2-bridge \
+            /usr/local/bin/capsula-art /etc/init.d/capsula-art \
+            /usr/local/bin/marusya-wake; do
+    if [ -e "$path" ]; then
+        mkdir -p "$backup/files$(dirname "$path")"
+        cp -p "$path" "$backup/files$path"
+    fi
+done
+cp /etc/apk/world "$backup/apk-world.before"
+rc-update show > "$backup/runlevels.before"
+apk add --no-cache avahi avahi-tools dbus glib libplist libsodium libgcrypt \
+    libconfig popt soxr libgomp libuuid
+
+# Stop only our receiver, timing daemon and bridge before replacing binaries.
+for svc in capsula-art ap2-bridge shairport-sync nqptp; do
+    if [ -f "/etc/init.d/$svc" ]; then rc-service "$svc" stop || die "Could not stop $svc"; fi
+done
+mkdir -p /usr/local/bin /usr/local/sbin /usr/share/dbus-1/system.d
+for pair in 'bin/shairport-sync:/usr/local/bin/shairport-sync' \
+            'bin/nqptp:/usr/local/sbin/nqptp' \
+            'bin/capsula-art:/usr/local/bin/capsula-art' \
+            'etc/init.d.capsula-art:/etc/init.d/capsula-art' \
+            'bin/capsule-ipc:/usr/local/bin/capsule-ipc' \
+            'bin/ap2ctl:/usr/local/bin/ap2ctl' \
+            'bin/ap2-volume-sync:/usr/local/bin/ap2-volume-sync' \
+            'bin/ap2-bridge:/usr/local/bin/ap2-bridge' \
+            'etc/init.d.nqptp:/etc/init.d/nqptp' \
+            'etc/init.d.shairport-sync:/etc/init.d/shairport-sync' \
+            'etc/init.d.ap2-bridge:/etc/init.d/ap2-bridge'; do
+    src=${pair%%:*}; dst=${pair#*:}
+    install -m 0755 "$src" "$dst.new"
+    mv -f "$dst.new" "$dst"
+done
+install -m 0644 etc/dbus-policy.conf /usr/share/dbus-1/system.d/shairport-sync.conf
+dbus-send --system --type=signal / org.freedesktop.DBus.ReloadConfig >/dev/null 2>&1 || true
+
+[ -e "$conf" ] || install -m 0644 etc/shairport-sync.conf "$conf"
+if [ "$name_mode" != preserve ]; then
+    AIRPLAY_INSTALL_NAME=$name awk '
+      /^[ \t]*name[ \t]*=/ { print "\tname = \"" ENVIRON["AIRPLAY_INSTALL_NAME"] "\";"; found=1; next }
+      {print}
+      END {if (!found) exit 1}
+    ' "$conf" > "$conf.new" || die "No name field in config; backup: $backup"
+    chmod 0644 "$conf.new"
+    mv -f "$conf.new" "$conf"
+fi
+if [ "$bridge" = yes ] && ! grep -q 'run_this_when_volume_is_set' "$conf"; then
+    awk '
+      /^[ \t]*name[ \t]*=/ && !done {
+          print
+          print "\tignore_volume_control = \"yes\";"
+          print "\trun_this_when_volume_is_set = \"/usr/local/bin/ap2-volume-sync\";"
+          done = 1; next
+      }
+      { print }
+    ' "$conf" > "$conf.new"
+    chmod 0644 "$conf.new"
+    mv -f "$conf.new" "$conf"
+fi
+
+# Preserve local sound/volume options, add only the cover output contract.
+if ! grep -q '^[[:space:]]*metadata[[:space:]]*=' "$conf"; then
+    cat >> "$conf" <<'META'
+
+metadata = {
+    enabled = "yes";
+    include_cover_art = "yes";
+    cover_art_cache_directory = "/tmp/shairport-sync-covers";
+};
+META
+else
+    # Existing custom metadata blocks are not rewritten silently.
+    if ! grep -q 'cover_art_cache_directory = "/tmp/shairport-sync-covers"' "$conf"; then
+        echo 'Custom metadata config retained; set CAPSULA_ART_COVERS for its cache path.' >&2
+    fi
+fi
+if [ -x /usr/local/bin/marusya-wake ] && [ -x /usr/local/bin/marusya-hw ]; then
+    [ -f /usr/local/bin/marusya-wake.stock ] || cp -p /usr/local/bin/marusya-wake /usr/local/bin/marusya-wake.stock
+    install -m 0755 etc/marusya-wake /usr/local/bin/marusya-wake
+fi
 mkdir -p /tmp/shairport-sync-covers
-
-rc-update add avahi-daemon default
-rc-update add nqptp default
 rc-update add capsula-art default
-rc-update add shairport-sync default
+rc-service capsula-art start
 
-rc-service dbus start >/dev/null 2>&1 || true
-rc-service avahi-daemon start || true
-rc-service nqptp start || true
-rc-service capsula-art start || true
-sleep 2
-rc-service shairport-sync start || true
+for svc in avahi-daemon nqptp shairport-sync; do rc-update add "$svc" default; done
+if [ "$bridge" = yes ]; then rc-update add ap2-bridge default; fi
+rc-service dbus status >/dev/null 2>&1 || rc-service dbus start
+rc-service avahi-daemon status >/dev/null 2>&1 || rc-service avahi-daemon start
+rc-service nqptp start
+rc-service shairport-sync start
+if [ "$bridge" = yes ]; then rc-service ap2-bridge start; fi
 sleep 3
-
-echo "== services"
-rc-service avahi-daemon status
-rc-service nqptp status
-rc-service capsula-art status
-rc-service shairport-sync status
-echo "== ports"
-ss -lunp | grep -E ':(319|320) ' || true
-ss -lntp | grep -E ':7000 ' || true
-echo "== airplay"
-avahi-browse -rt _airplay._tcp 2>/dev/null | grep -A8 'hostname' | head -12 || true
-echo "== hashes"
-sha256sum /usr/local/bin/shairport-sync /usr/local/sbin/nqptp /usr/local/bin/capsula-art
-echo INSTALL_PASS
+for svc in avahi-daemon nqptp shairport-sync; do
+    rc-service "$svc" status || die "Service failed: $svc. Backup: $backup"
+done
+if [ "$bridge" = yes ]; then
+    rc-service ap2-bridge status || die "Bridge failed. Backup: $backup"
+fi
+if ! dbus-send --system --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus \
+        org.freedesktop.DBus.NameHasOwner string:org.gnome.ShairportSync | grep -q 'boolean true'; then
+    die "No AirPlay D-Bus name. Backup: $backup"
+fi
+echo "INSTALL_PASS bridge=$bridge backup=$backup"

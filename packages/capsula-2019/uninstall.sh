@@ -34,8 +34,13 @@ fi
 # The patched voice-agent only exists in the overlay; removing it restores the
 # stock binary from the read-only squashfs on the next boot.
 if [ -f "$VA" ]; then
-    rm -f "$VA"
-    echo "voice-agent: volume patch removed"
+    hash=$(sha256sum "$VA" | cut -d' ' -f1)
+    if [ "$hash" = e58d5e46c2b26e7c20ab740c11b03993472aa032d142cc25c127204728dcb9b5 ]; then
+        rm -f "$VA"
+        echo "voice-agent: volume patch removed"
+    else
+        echo "Keeping unrecognised overlay voice-agent; it is not this package's patch."
+    fi
 fi
 
 sync
