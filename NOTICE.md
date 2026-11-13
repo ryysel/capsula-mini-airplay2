@@ -1,12 +1,13 @@
 # Лицензии и происхождение бинарников
 
-Репозиторий содержит два предсобранных бинарника для aarch64/musl. Они не
-написаны автором репозитория и распространяются на условиях их собственных
-лицензий.
+Репозиторий содержит предсобранные бинарники под две колонки:
+`packages/mini-a113x` (aarch64/musl, Alpine 3.24) и
+`packages/capsula-2019` (aarch64/glibc 2.33, Buildroot). Они не написаны
+автором репозитория и распространяются на условиях их собственных лицензий.
 
 ## shairport-sync
 
-- Версия: `5.6.2-dirty-AirPlay2-smi11-OpenSSL-Avahi-ALSA-soxr-metadata-sysconfdir:/etc`
+- Версия: `5.6.2-dirty-AirPlay2-smi11-OpenSSL-Avahi-…-soxr-…`
 - Исходник: https://github.com/mikebrady/shairport-sync
 - Коммит: `0a34fbda83724cc06266aadcf7c88acc8fef4e7d`
 - Условия: см. `COPYING` и `LICENSES` в дереве исходников; часть файлов имеет
@@ -26,14 +27,32 @@
 - Коммит: `f46e514491172d15bd74b4abb1814cd2f05a763e`
 - Лицензия: LGPL-2.1+ (`LICENSE.md` в исходниках). Сборка выполнена с
   `--disable-everything` и включает только LGPL-компоненты: декодеры AAC и
-  ALAC, парсер AAC, демуксер mov, протокол file.
+  ALAC, парсер AAC.
+
+## Статически слинкованные библиотеки (только пакет 2019)
+
+| Библиотека | Версия | Лицензия |
+|---|---|---|
+| libconfig | 1.7.3 | LGPL-2.1+ |
+| popt | 1.19 | MIT |
+| soxr | 0.1.3 | LGPL-2.1+ |
+| libsodium | 1.0.19 | ISC |
+| libgpg-error | 1.49 | LGPL-2.1+ |
+| libgcrypt | 1.10.3 | LGPL-2.1+ |
+| libplist | 2.3.0 | LGPL-2.1+ |
+
+Динамически пакет 2019 использует только те библиотеки, что уже есть в
+прошивке колонки: libc, libm, libpthread, libdl, libavahi-client,
+libpulse, libuuid, libssl/libcrypto.
 
 ## Воспроизведение сборки
 
-`build/build.sh` — полный рецепт: контейнер `alpine:3.24` под
-qemu-user-static, установка `-dev`-пакетов, сборка FFmpeg, nqptp и
-shairport-sync с `--with-airplay-2`. Файл `BUILD_INFO.txt` фиксирует коммиты,
-вывод `-V`, `ldd` и SHA256.
+- Мини: `build/build-mini.sh` — контейнер `alpine:3.24` под qemu-user-static.
+- 2019: `build/Dockerfile` + `build/build-2019.sh` — Debian bullseye,
+  кросс-компиляция `aarch64-linux-gnu-gcc` (glibc 2.31 → запускается на 2.33).
+
+Файлы `BUILD_INFO.txt` / `out/BUILD_INFO.txt` фиксируют коммиты, вывод `-V`,
+`NEEDED`, максимальные версии символов glibc и SHA256.
 
 ## Исходники
 
@@ -49,6 +68,6 @@ shairport-sync с `--with-airplay-2`. Файл `BUILD_INFO.txt` фиксируе
 ## Исправление значка — v1.0.1
 
 Модель AirPlay изменена с `ShairportSync` на `AudioAccessory5,1`: круглый
-значок как у Mini/Lite. Патч: `build/model-icon.patch`. Суффикс `-dirty`
-в версии означает эту локальную правку. Имя и настройки звука не меняются.
-iOS может кешировать старый значок.
+значок как у Mini/Lite. Патч: `build/model-icon.patch` (применяется в обоих
+сборочных скриптах). Суффикс `-dirty` в версии означает эту локальную правку.
+Имя и настройки звука не меняются. iOS может кешировать старый значок.

@@ -1,0 +1,15 @@
+#!/bin/sh
+# Late-boot hooks for the VK Капсула 2019 jailbreak rootfs.
+#
+# Why this exists: the stock rcS expands "/etc/init.d/S??*" before
+# S23overlayfs.sh mounts the /data overlay, so init scripts added to the
+# overlay are never started. Voice-agent starts after the overlay is up, so
+# its wrapper calls this dispatcher instead.
+#
+# Hooks are plain shell scripts in /data/local/capsula-boot.d/*.sh and must
+# accept start|stop|restart.
+
+for f in /data/local/capsula-boot.d/*.sh; do
+    [ -x "$f" ] || continue
+    "$f" start > /dev/null 2>&1
+done

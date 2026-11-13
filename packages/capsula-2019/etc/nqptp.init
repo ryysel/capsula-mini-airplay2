@@ -1,0 +1,27 @@
+#!/bin/sh
+# nqptp for shairport-sync AirPlay 2 (VK Капсула 2019, Buildroot).
+BIN=/data/local/capsula-airplay/bin/nqptp
+PID=/var/run/nqptp.pid
+
+case "$1" in
+  start)
+    [ -x "$BIN" ] || exit 0
+    pidof nqptp >/dev/null 2>&1 && exit 0
+    echo "Starting nqptp"
+    start-stop-daemon -S -q -b -m -p "$PID" -x "$BIN"
+    ;;
+  stop)
+    echo "Stopping nqptp"
+    start-stop-daemon -K -q -p "$PID" -x "$BIN" -s TERM
+    ;;
+  restart)
+    "$0" stop
+    sleep 1
+    "$0" start
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart}"
+    exit 1
+    ;;
+esac
+exit 0

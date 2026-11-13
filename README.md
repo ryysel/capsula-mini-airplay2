@@ -1,153 +1,145 @@
-# AirPlay 2 для VK Капсула Мини на Alpine Linux
+# AirPlay 2 для VK Капсул
 
-Готовые бинарники и установщик AirPlay 2-приёмника для **VK Капсула Мини**
-(Amlogic A113X, aarch64) под **Alpine Linux 3.24**.
+Готовые приёмники AirPlay 2 для колонок VK: **Капсула 2019** (Rockchip RK3308,
+Buildroot) и **Капсула Мини** (Amlogic A113X, Alpine Linux). Один репозиторий,
+два пакета; установщик сам определяет колонку.
 
-Внутри: `shairport-sync` 5.6.2 с AirPlay 2 и `nqptp` 1.2.9 (SMI 11), собранные
-нативно под musl, плюс конфиг и службы OpenRC. Сторонние glibc/armhf-сборки и
-Yandex-обвязка не нужны: зависимости ставятся через `apk` с самого устройства.
-
-Собрано и проверено на VK Капсула Мини: Alpine 3.24.1, kernel 6.18.56,
-Amlogic A113X, 4 ядра, ~215 MiB RAM.
-
-## Состав
-
-| Файл | Что это |
-|---|---|
-| `bin/shairport-sync` | приёмник AirPlay 2 (aarch64, musl) |
-| `bin/nqptp` | PTP-демон, обязателен для AirPlay 2 |
-| `etc/shairport-sync.conf` | конфиг: имя, порт 7000, вывод на `default` |
-| `etc/init.d/nqptp` | служба OpenRC |
-| `etc/init.d/shairport-sync` | служба OpenRC |
-| `install.sh` | установка одной командой |
-| `uninstall.sh` | удаление |
-| `build/build.sh` | воспроизводимая сборка (alpine:3.24 + qemu) |
-| `BUILD_INFO.txt` | коммиты исходников, `-V`, `ldd`, хеши |
-| `SHA256SUMS` | контрольные суммы всех файлов |
-
-## Требования
-
-- Alpine Linux **3.24**, архитектура **aarch64**, root.
-- ~30 MiB свободного места и доступ в интернет (для `apk add`).
-- Работающий ALSA-выход (`aplay -l` должен видеть карту).
-- Для другой версии Alpine или другого дистрибутива сборка не гарантируется:
-  бинарники собраны под musl 1.2 и конкретные soname Alpine 3.24.
+Внутри — `shairport-sync` 5.6.2 с AirPlay 2 и `nqptp` 1.2.9 (SMI 11), собранные
+под конкретную прошивку колонки, плюс конфиг и службы автозапуска. Сторонние
+glibc/armhf-сборки и Yandex-обвязка не нужны.
 
 ## Установка
 
 ```sh
 git clone https://github.com/ryysel/capsula-mini-airplay2.git
 cd capsula-mini-airplay2
-sh install.sh              # имя по умолчанию: «Капсула Мини»
+sh install.sh              # имя по умолчанию для этой колонки
 sh install.sh "Кухня"      # своё имя в AirPlay
 ```
 
-Скрипт проверяет архитектуру и контрольные суммы, ставит пакеты
-(`avahi`, `avahi-tools`, `libplist`, `libsodium`, `libgcrypt`, `libconfig`,
-`popt`, `soxr`, `libgomp`, `libuuid`), копирует файлы, включает
-`avahi-daemon`, `nqptp` и `shairport-sync` в runlevel `default` и запускает их.
+`install.sh` проверяет архитектуру и колонку, сверяет `SHA256SUMS`
+соответствующего пакета и передаёт управление `packages/<колонка>/install.sh`.
+Поддерживаются:
 
-Повторный запуск безопасен: файлы, совпадающие с комплектом, не перезаписываются,
-а отличающиеся — не затираются без разрешения.
+| Колонка | Определение | Пакет |
+|---|---|---|
+| VK Капсула 2019 | Buildroot + `rk3308` в device tree | `packages/capsula-2019` |
+| VK Капсула Мини | `/etc/alpine-release`, aarch64 | `packages/mini-a113x` |
+
+На неподдерживаемом устройстве установщик остановится до любых изменений.
+
+## Что ставится
+
+### Капсула 2019 (RK3308, Buildroot)
+
+Всё в `/data/local`, потому что корневая ФС — squashfs + оверлей:
+
+| Путь | Что |
+|---|---|
+| `/data/local/capsula-airplay/bin/shairport-sync` | приёмник AirPlay 2 |
+| `/data/local/capsula-airplay/bin/nqptp` | PTP-демон (обязателен для AP2) |
+| `/data/local/capsula-airplay/etc/shairport-sync.conf` | имя, порт, вывод |
+| `/data/local/capsula-airplay/init.d/{nqptp,shairport-sync}` | start/stop/restart |
+| `/data/local/bin/capsula-boot` | запуск поздних хуков |
+| `/data/local/capsula-boot.d/30-airplay.sh` | хук автозапуска |
+
+Звук идёт в **PulseAudio** — тот же сервер, что использует `voice-agent`.
+Громкость у приёмника своя (программная), поэтому ползунок телефона не
+переписывает системный микшер.
+
+**Автозапуск.** Штатный `rcS` разворачивает `/etc/init.d/S??*` до того, как
+`S23overlayfs.sh` смонтирует оверлей, поэтому новые `S*`-скрипты в оверлее
+никогда не запускаются. Установщик добавляет вызов `capsula-boot` в копию
+обёртки `/usr/bin/voice-agent.sh` в оверлее — она стартует уже после
+монтирования. Оригинал остаётся в squashfs, откат — `uninstall.sh`.
+
+### Капсула Мини (A113X, Alpine)
+
+Обычная установка в систему: `bin/`, конфиг `/etc/shairport-sync.conf`,
+службы OpenRC `/etc/init.d/{nqptp,shairport-sync}`, зависимости через `apk`.
+Вывод — ALSA `default` (softvol поверх микшера твикера).
 
 ## Проверка
 
+Общее:
+
 ```sh
-rc-service avahi-daemon status
-rc-service nqptp status
-rc-service shairport-sync status
 ss -lntp | grep 7000
 ss -lunp | grep -E ':(319|320) '
+```
+
+Капсула 2019:
+
+```sh
+pidof nqptp shairport-sync
+logread | grep shairport
+/data/local/capsula-airplay/init.d/shairport-sync restart
+```
+
+Мини:
+
+```sh
+rc-service nqptp status
+rc-service shairport-sync status
 avahi-browse -rt _airplay._tcp
 ```
 
 На iPhone: Пункт управления → «Повтор экрана/Звук» → имя колонки.
-Если колонки не видно — проверьте, что телефон и колонка в одной сети и что
-avahi видит `_airplay._tcp` (см. выше).
+Если колонки не видно — проверьте, что телефон и колонка в одной сети.
 
 ## Настройка
 
-`/etc/shairport-sync.conf`:
+`shairport-sync.conf`:
 
 - `name` — имя в AirPlay;
 - `port` — RTSP-порт (по умолчанию 7000);
-- `output_device` — ALSA-устройство (по умолчанию `default`);
+- `output_backend` — `pulseaudio` на 2019, `alsa` на Мини;
 - `volume_range_db` — диапазон программной громкости.
 
-После правки: `rc-service shairport-sync restart`.
+После правки: `init.d/shairport-sync restart` (2019) или
+`rc-service shairport-sync restart` (Мини).
 
-По умолчанию громкость **программная**: телефонный ползунок не переписывает
-системный микшер. Если нужен системный микшер, добавьте
-`mixer_control_name = "Master Playback Volume"` в секцию `alsa`, но тогда
-ползунок iPhone и кнопки/меню будут делить один контрол.
+## Сборка
 
-## Удаление
+Бинарники собраны под конкретную прошивку, поэтому сборка у каждого пакета
+своя:
 
-```sh
-sh uninstall.sh
-```
+| Пакет | Как собрано |
+|---|---|
+| Мини | `build/build-mini.sh` — нативно в Alpine 3.24 aarch64 (musl) |
+| 2019 | `build/build-2019.sh` — кросс-сборка в Debian bullseye (glibc 2.31 → 2.33), `build/Dockerfile` |
 
-Останавливает и убирает службы, удаляет бинарники и конфиг. Пакеты `apk` и
-`/etc/asound.conf` не трогает.
-
-## Известные ограничения
-
-- Проверено на одном экземпляре Капсулы Мини; другие платы/ядра не тестировались.
-- AirPlay 2 требует PTP: без запущенного `nqptp` воспроизведения не будет.
-- avahi может писать `not fitting in legacy unicast packet, dropping` для
-  `_airplay._tcp`: TXT-запись большая. Multicast-обнаружение при этом работает,
-  на практике iPhone колонку видит.
-- Если рядом работает Bluetooth-аудио (`bluealsa-aplay`), оно может занять ALSA.
-- Иконка и переподключение кэшируются на стороне iOS — это не приёмник.
-
-## Источники и лицензии
-
-- `shairport-sync` 5.6.2, commit `0a34fbda83724cc06266aadcf7c88acc8fef4e7d` —
-  https://github.com/mikebrady/shairport-sync
-- `nqptp` 1.2.9, commit `ab8fb67483411640fd7f1e193889482f2421c37c` —
-  https://github.com/mikebrady/nqptp
-- FFmpeg `n7.1.3`, commit `f46e514491172d15bd74b4abb1814cd2f05a763e` —
-  https://github.com/FFmpeg/FFmpeg (только AAC/ALAC-декодеры, mov-демуксер,
-  статически)
-- Сборка: `build/build.sh`, контейнер `alpine:3.24` под qemu-user-static.
-
-Лицензии: `nqptp` — GPL-2.0; FFmpeg — LGPL-2.1+ (в сборке только
-LGPL-компоненты); `shairport-sync` — см. `LICENSES`/`COPYING` в его исходниках.
-Скрипты и текст этого репозитория — MIT (`LICENSE`).
-
-Бинарники распространяются «как есть», без гарантий. Точные исходники — в
-upstream-репозиториях по коммитам выше; `build/build.sh` воспроизводит сборку.
-Если нужен архив исходников — откройте issue, выложу.
-
-## Контрольные суммы
-
-```
-ce934c9554fe9065e6cf56efa77b1084727897feb7b64f7fe6d296cc4d3d8df4  bin/shairport-sync
-46fa1399c3b1bc8f5680fc67959cfb0c1638b1b10e15c454eac5ae56a6504edf  bin/nqptp
-```
-
-Полный список — `SHA256SUMS`.
-
-## Исправление значка — v1.0.1
-
-Модель AirPlay изменена с `ShairportSync` на `AudioAccessory5,1`: круглый
-значок как у Mini/Lite. Патч: `build/model-icon.patch`. Суффикс `-dirty`
-в версии означает эту локальную правку. Имя и настройки звука не меняются.
-iOS может кешировать старый значок.
-
-### Обновление с v1.0.0 (root, из нового архива)
-
-`install.sh` намеренно не перезаписывает отличающийся бинарник. Для обновления:
+Для 2019 внутри образа `capsula-2019-airplay-builder`:
 
 ```sh
-sha256sum -c SHA256SUMS || exit 1
-cp -p /usr/local/bin/shairport-sync /root/shairport-sync.before-v1.0.1
-rc-service shairport-sync stop
-install -m 0755 bin/shairport-sync /usr/local/bin/shairport-sync
-rc-service shairport-sync start
-rc-service shairport-sync status
+docker build -t capsula-2019-airplay-builder -f build/Dockerfile build
+docker run --rm -v "$PWD":/work -w /work capsula-2019-airplay-builder \
+    bash build/build-2019.sh
 ```
 
-Конфиг (включая имя комнаты) сохранится. Для отката остановите службу,
-верните `/root/shairport-sync.before-v1.0.1` в `/usr/local/bin/shairport-sync`
-и запустите службу снова.
+Результат — `out/shairport-sync`, `out/nqptp`, `out/BUILD_INFO.txt`.
+Статически линкуются libconfig, popt, soxr, libsodium, libgpg-error,
+libgcrypt, libplist и ffmpeg (только AAC/ALAC); динамически — libc,
+libavahi-client, libpulse, libuuid, libssl/libcrypto, которые уже есть в
+прошивке.
+
+## Откат
+
+- 2019: `sh packages/capsula-2019/uninstall.sh`, затем перезагрузка.
+- Мини: `sh packages/mini-a113x/uninstall.sh`.
+
+## Ограничения
+
+- Прошивки 2019 и Мини обновляются только вместе с пакетом: бинарники
+  привязаны к libc и библиотекам конкретной сборки.
+- На 2019 OTA отключён, поэтому обновление прошивки не подменит библиотеки
+  незаметно; при включении OTA пакет нужно пересобрать.
+- AirPlay 2 и `voice-agent` делят один звуковой сервер: во время AirPlay
+  голосовые ответы Маруси будут звучать поверх/вместо музыки.
+- Холодная загрузка 2019 с автозапуском проверяется отдельно (см. журнал
+  проекта).
+
+## Лицензии
+
+`shairport-sync` — GPL-2.0-or-later, `nqptp` — GPL-2.0-or-later, FFmpeg —
+LGPL-2.1-or-later (сборка только декодеров). Подробности в `NOTICE.md`.

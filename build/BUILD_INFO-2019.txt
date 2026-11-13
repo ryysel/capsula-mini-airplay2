@@ -1,0 +1,27 @@
+target: VK Capsula 2019 (RK3308, Buildroot 2022.11, glibc 2.33, aarch64)
+toolchain: 10 / bullseye glibc 2.31
+aarch64-binfmt-P: Could not open '/lib/ld-linux-aarch64.so.1': No such file or directory
+--- NEEDED ---
+  NEEDED               libm.so.6
+  NEEDED               libuuid.so.1
+  NEEDED               libpulse.so.0
+  NEEDED               libavahi-common.so.3
+  NEEDED               libavahi-client.so.3
+  NEEDED               libcrypto.so.1.1
+  NEEDED               libpthread.so.0
+  NEEDED               librt.so.1
+  NEEDED               libgcc_s.so.1
+  NEEDED               libc.so.6
+  NEEDED               ld-linux-aarch64.so.1
+--- max GLIBC symbol versions ---
+GLIBC_2.25
+GLIBC_2.27
+GLIBC_2.28
+GLIBC_2.29
+--- sizes ---
+total 2992
+-rw-r--r-- 1 root root     727 Nov 13 06:05 BUILD_INFO.txt
+-rwxr-xr-x 1 root root   35200 Nov 13 06:05 nqptp
+-rwxr-xr-x 1 root root 3019248 Nov 13 06:05 shairport-sync
+533514b5863c927070671fa132a2574c209333b041d9020bced2b70980fdbf77  /work/out/shairport-sync
+8a9ac4999efe61ca7d84556fefeeb3e8facf005e48321aee6be3c6654b5ff3b0  /work/out/nqptp

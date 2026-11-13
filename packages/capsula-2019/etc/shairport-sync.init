@@ -1,0 +1,33 @@
+#!/bin/sh
+# shairport-sync AirPlay 2 receiver (VK Капсула 2019, Buildroot).
+BIN=/data/local/capsula-airplay/bin/shairport-sync
+CONF=/data/local/capsula-airplay/etc/shairport-sync.conf
+PID=/var/run/shairport-sync.pid
+
+case "$1" in
+  start)
+    [ -x "$BIN" ] || exit 0
+    pidof shairport-sync >/dev/null 2>&1 && exit 0
+    # nqptp needs a moment to create its shared memory interface.
+    if pidof nqptp >/dev/null 2>&1; then
+        sleep 1
+    fi
+    echo "Starting shairport-sync"
+    start-stop-daemon -S -q -b -m -p "$PID" -x "$BIN" -- \
+        --configfile="$CONF" --log-to-syslog
+    ;;
+  stop)
+    echo "Stopping shairport-sync"
+    start-stop-daemon -K -q -p "$PID" -x "$BIN" -s TERM
+    ;;
+  restart)
+    "$0" stop
+    sleep 1
+    "$0" start
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart}"
+    exit 1
+    ;;
+esac
+exit 0
