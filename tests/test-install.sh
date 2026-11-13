@@ -40,6 +40,14 @@ sh install.sh --upgrade > /tmp/upgrade-output
 cmp bin/shairport-sync /usr/local/bin/shairport-sync
 grep -Fq 'name = "Hall & Kitchen|$(false)";' /etc/shairport-sync.conf
 find /root -path '*/files/usr/local/bin/shairport-sync' | grep -q .
+# Timing migration applies on upgrade as well as on a fresh install.
+grep -q 'audio_backend_latency_offset_in_seconds = -1.7;' /etc/shairport-sync.conf
+grep -q 'audio_backend_buffer_desired_length_in_seconds = 0.10;' /etc/shairport-sync.conf
+sh install.sh --upgrade --timing synchronized > /tmp/sync-output
+grep -q 'audio_backend_latency_offset_in_seconds = 0.0;' /etc/shairport-sync.conf
+sh install.sh --upgrade --timing fast_audio > /tmp/fast-output
+grep -q 'audio_backend_latency_offset_in_seconds = -1.7;' /etc/shairport-sync.conf
+if sh install.sh --check --timing bogus >/tmp/bad-output 2>&1; then echo 'Invalid timing accepted'; exit 1; fi
 printf '3.25.0\n' > /etc/alpine-release
 if sh install.sh --check >/tmp/bad-output 2>&1; then echo 'Wrong Alpine accepted'; exit 1; fi
 echo INSTALL_TESTS_PASS

@@ -5,12 +5,14 @@
 set -eu
 root=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 cd "$root"
+timing_mode=fast_audio
 upgrade=no
 check=no
 name_mode=preserve
 name=
 while [ "$#" -gt 0 ]; do
     case "$1" in
+        --timing) shift; [ "$#" -gt 0 ] || exit 2; timing_mode=$1 ;;
         --upgrade) upgrade=yes ;;
         --check) check=yes ;;
         --hostname) name_mode=hostname ;;
@@ -22,6 +24,7 @@ while [ "$#" -gt 0 ]; do
     shift
 done
 die() { echo "$*" >&2; exit 1; }
+case "$timing_mode" in fast_audio|synchronized) ;; *) die 'Invalid timing mode';; esac
 [ "$(id -u)" = 0 ] || die 'Run as root'
 [ "$(uname -m)" = aarch64 ] || die 'Only aarch64 is supported'
 [ -f /etc/alpine-release ] || die 'Alpine is required'
@@ -60,6 +63,7 @@ for pair in 'bin/shairport-sync:/usr/local/bin/shairport-sync' \
             'bin/nqptp:/usr/local/sbin/nqptp' \
             'bin/capsula-art:/usr/local/bin/capsula-art' \
             'etc/init.d.capsula-art:/etc/init.d/capsula-art' \
+            'etc/apply-timing-profile.sh:/usr/local/bin/capsula-airplay-timing' \
             'bin/capsule-ipc:/usr/local/bin/capsule-ipc' \
             'bin/ap2ctl:/usr/local/bin/ap2ctl' \
             'bin/ap2-volume-sync:/usr/local/bin/ap2-volume-sync' \
@@ -86,7 +90,7 @@ for path in /usr/local/bin/shairport-sync /usr/local/sbin/nqptp \
             /etc/shairport-sync.conf /etc/init.d/nqptp \
             /etc/init.d/shairport-sync /etc/init.d/ap2-bridge \
             /usr/local/bin/capsula-art /etc/init.d/capsula-art \
-            /usr/local/bin/marusya-wake; do
+            /usr/local/bin/marusya-wake /usr/local/bin/capsula-airplay-timing; do
     if [ -e "$path" ]; then
         mkdir -p "$backup/files$(dirname "$path")"
         cp -p "$path" "$backup/files$path"
@@ -106,6 +110,7 @@ for pair in 'bin/shairport-sync:/usr/local/bin/shairport-sync' \
             'bin/nqptp:/usr/local/sbin/nqptp' \
             'bin/capsula-art:/usr/local/bin/capsula-art' \
             'etc/init.d.capsula-art:/etc/init.d/capsula-art' \
+            'etc/apply-timing-profile.sh:/usr/local/bin/capsula-airplay-timing' \
             'bin/capsule-ipc:/usr/local/bin/capsule-ipc' \
             'bin/ap2ctl:/usr/local/bin/ap2ctl' \
             'bin/ap2-volume-sync:/usr/local/bin/ap2-volume-sync' \
@@ -143,6 +148,10 @@ if [ "$bridge" = yes ] && ! grep -q 'run_this_when_volume_is_set' "$conf"; then
     chmod 0644 "$conf.new"
     mv -f "$conf.new" "$conf"
 fi
+
+# v1.4.1 intentionally migrates timing even on an existing installation.
+# Backups above preserve the previous profile; --timing synchronized opts out.
+sh /usr/local/bin/capsula-airplay-timing "$conf" "$timing_mode"
 
 # Preserve local sound/volume options, add only the cover output contract.
 if ! grep -q '^[[:space:]]*metadata[[:space:]]*=' "$conf"; then

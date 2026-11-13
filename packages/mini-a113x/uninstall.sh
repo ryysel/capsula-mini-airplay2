@@ -8,7 +8,7 @@ for svc in capsula-art ap2-bridge shairport-sync nqptp avahi-daemon; do
     rc-update del "$svc" default >/dev/null 2>&1 || true
 done
 
-rm -f /usr/local/bin/capsula-art /etc/init.d/capsula-art /run/capsula-art.pid
+rm -f /usr/local/bin/capsula-airplay-timing /usr/local/bin/capsula-art /etc/init.d/capsula-art /run/capsula-art.pid
 
 rm -f /usr/local/bin/shairport-sync \
       /usr/local/sbin/nqptp \

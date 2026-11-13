@@ -16,13 +16,22 @@
 # Usage: sh install.sh ["AirPlay name"]
 set -eu
 
-name=${1:-}
+name=
+timing_mode=fast_audio
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --timing) shift; [ "$#" -gt 0 ] || exit 2; timing_mode=$1 ;;
+        --*) echo 'Usage: install.sh [name] [--timing fast_audio|synchronized]' >&2; exit 2 ;;
+        *) [ -z "$name" ] || exit 2; name=$1 ;;
+    esac
+    shift
+done
+case "$timing_mode" in fast_audio|synchronized) ;; *) echo 'Invalid timing mode' >&2; exit 2;; esac
 root=$(cd "$(dirname "$0")" && pwd)
 cd "$root"
 
 # Validate explicit names before stopping services or changing any files.
 if [ -n "$name" ]; then
-    [ "$#" -eq 1 ] || { echo 'Expected one optional AirPlay name' >&2; exit 1; }
     case "$name" in --*|*'"'*|*'\'* ) echo 'Invalid AirPlay name' >&2; exit 1;; esac
     [ "$(printf '%s' "$name" | wc -c)" -le 50 ] || { echo 'Name exceeds 50 UTF-8 bytes' >&2; exit 1; }
     [ "$(printf '%s' "$name" | wc -l)" -eq 0 ] || { echo 'Name must be a single line' >&2; exit 1; }
@@ -108,16 +117,11 @@ metadata = {
 META
 fi
 
-# Do not carry the trial's aggressive latency into the supported package.
-: > "$DEST/etc/shairport-sync.conf.new"
-while IFS= read -r line || [ -n "$line" ]; do
-    case "$line" in
-        *audio_backend_latency_offset_in_seconds*) printf '\taudio_backend_latency_offset_in_seconds = 0.0;\n' ;;
-        *audio_backend_buffer_desired_length_in_seconds*) printf '\taudio_backend_buffer_desired_length_in_seconds = 0.2;\n' ;;
-        *) printf '%s\n' "$line" ;;
-    esac
-done < "$DEST/etc/shairport-sync.conf" > "$DEST/etc/shairport-sync.conf.new"
-mv "$DEST/etc/shairport-sync.conf.new" "$DEST/etc/shairport-sync.conf"
+# Same explicit fast-audio values as the current Alice profile. A caller can
+# request synchronized mode without losing name/volume/metadata settings.
+cp -f etc/apply-timing-profile.sh "$DEST/bin/apply-timing-profile"
+chmod 0755 "$DEST/bin/apply-timing-profile"
+sh "$DEST/bin/apply-timing-profile" "$DEST/etc/shairport-sync.conf" "$timing_mode"
 
 # The stock rcS expands /etc/init.d/S??* before the overlay is mounted, so a
 # new S* script never runs. Hook into the voice-agent wrapper, which starts

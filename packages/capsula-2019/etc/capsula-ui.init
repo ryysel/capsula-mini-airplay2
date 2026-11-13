@@ -9,13 +9,33 @@ stop_pid() {
         rm -f "$1"
     fi
 }
+stop_legacy_clock() {
+    /etc/init.d/S98capsula-led stop >/dev/null 2>&1 || true
+    # On this firmware killall can miss the executable. Match exact argv to
+    # avoid ever killing voice-agent or another LED tool.
+    for entry in /proc/[0-9]*/cmdline; do
+        [ -r "$entry" ] || continue
+        cmd=$(tr '\000' ' ' < "$entry" 2>/dev/null) || continue
+        case "$cmd" in
+            '/usr/bin/capsula-led daemon ')
+                pid=${entry#/proc/}; pid=${pid%/cmdline}
+                kill -TERM "$pid" 2>/dev/null || true ;;
+        esac
+    done
+}
+running_pid() {
+    [ -f "$1" ] && kill -0 "$(cat "$1")" 2>/dev/null
+}
 case "${1:-}" in
 start)
-    [ -f /var/run/capsula-ui.pid ] && kill -0 "$(cat /var/run/capsula-ui.pid)" 2>/dev/null && exit 0
-    /etc/init.d/S98capsula-led stop >/dev/null 2>&1 || true
-    start-stop-daemon -S -b -m -p /var/run/capsula-ui.pid -x /bin/sh -- -c \
-      'exec /data/local/capsula-airplay/bin/capsula-ui >> /tmp/capsula-ui.log 2>&1'
-    start-stop-daemon -S -b -m -p /var/run/capsula-led-media.pid -x "$LED" -- daemon
+    stop_legacy_clock
+    if ! running_pid /var/run/capsula-ui.pid; then
+        start-stop-daemon -S -b -m -p /var/run/capsula-ui.pid -x /bin/sh -- -c \
+          'exec /data/local/capsula-airplay/bin/capsula-ui >> /tmp/capsula-ui.log 2>&1'
+    fi
+    if ! running_pid /var/run/capsula-led-media.pid; then
+        start-stop-daemon -S -b -m -p /var/run/capsula-led-media.pid -x "$LED" -- daemon
+    fi
     ;;
 stop)
     stop_pid /var/run/capsula-ui.pid
