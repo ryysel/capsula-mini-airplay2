@@ -3,16 +3,28 @@
 BIN=/data/local/capsula-airplay/bin/nqptp
 PID=/var/run/nqptp.pid
 
+running() {
+    [ -f "$PID" ] || return 1
+    pid=$(cat "$PID" 2>/dev/null) || return 1
+    [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null
+}
+
 case "$1" in
   start)
     [ -x "$BIN" ] || exit 0
-    pidof nqptp >/dev/null 2>&1 && exit 0
+    running && exit 0
     echo "Starting nqptp"
     start-stop-daemon -S -q -b -m -p "$PID" -x "$BIN"
     ;;
   stop)
     echo "Stopping nqptp"
-    start-stop-daemon -K -q -p "$PID" -x "$BIN" -s TERM
+    if running; then
+        start-stop-daemon -K -q -p "$PID" -s TERM
+    fi
+    rm -f "$PID"
+    ;;
+  status)
+    running && echo "nqptp: running" || echo "nqptp: stopped"
     ;;
   restart)
     "$0" stop
@@ -20,7 +32,7 @@ case "$1" in
     "$0" start
     ;;
   *)
-    echo "Usage: $0 {start|stop|restart}"
+    echo "Usage: $0 {start|stop|restart|status}"
     exit 1
     ;;
 esac

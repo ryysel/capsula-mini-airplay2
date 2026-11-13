@@ -3,22 +3,41 @@
 BIN=/data/local/capsula-airplay/bin/shairport-sync
 CONF=/data/local/capsula-airplay/etc/shairport-sync.conf
 PID=/var/run/shairport-sync.pid
+NQPID=/var/run/nqptp.pid
+
+# pidof does not see this binary reliably on the stock busybox, so the pidfile
+# is the source of truth.
+running() {
+    [ -f "$PID" ] || return 1
+    pid=$(cat "$PID" 2>/dev/null) || return 1
+    [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null
+}
+
+nqptp_running() {
+    [ -f "$NQPID" ] || return 1
+    pid=$(cat "$NQPID" 2>/dev/null) || return 1
+    [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null
+}
 
 case "$1" in
   start)
     [ -x "$BIN" ] || exit 0
-    pidof shairport-sync >/dev/null 2>&1 && exit 0
-    # nqptp needs a moment to create its shared memory interface.
-    if pidof nqptp >/dev/null 2>&1; then
-        sleep 1
-    fi
+    running && exit 0
+    # nqptp creates its shared memory interface right after start.
+    nqptp_running && sleep 1
     echo "Starting shairport-sync"
     start-stop-daemon -S -q -b -m -p "$PID" -x "$BIN" -- \
         --configfile="$CONF" --log-to-syslog
     ;;
   stop)
     echo "Stopping shairport-sync"
-    start-stop-daemon -K -q -p "$PID" -x "$BIN" -s TERM
+    if running; then
+        start-stop-daemon -K -q -p "$PID" -s TERM
+    fi
+    rm -f "$PID"
+    ;;
+  status)
+    running && echo "shairport-sync: running" || echo "shairport-sync: stopped"
     ;;
   restart)
     "$0" stop
@@ -26,7 +45,7 @@ case "$1" in
     "$0" start
     ;;
   *)
-    echo "Usage: $0 {start|stop|restart}"
+    echo "Usage: $0 {start|stop|restart|status}"
     exit 1
     ;;
 esac

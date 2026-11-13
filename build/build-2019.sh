@@ -162,6 +162,37 @@ get https://github.com/mikebrady/shairport-sync/archive/refs/tags/5.6.2.tar.gz s
 cd shairport-sync-5.6.2
 sed -i 's/config.model = strdup("ShairportSync");/config.model = strdup("AudioAccessory5,1");/' shairport.c
 grep -q 'config.model = strdup("AudioAccessory5,1");' shairport.c
+
+# Local patch: the stock PulseAudio backend has no volume callback, so AirPlay
+# volume only scaled the samples and the speaker's own knob stayed separate.
+# Make the AirPlay volume drive the PulseAudio sink volume instead.
+if ! grep -q 'airplay_volume_to_sink' audio_pa.c; then
+    sed -i 's|#include <errno.h>|#include <errno.h>\n#include <math.h>|' audio_pa.c
+    sed -i 's|^audio_output audio_pa = {|static void airplay_volume_to_sink(double vol);\n\naudio_output audio_pa = {|' audio_pa.c
+    sed -i 's|\.volume = NULL,|.volume = airplay_volume_to_sink,|' audio_pa.c
+    cat >> audio_pa.c <<'PATCH'
+
+// Local patch (capsula-2019 package): the AirPlay volume sets the PulseAudio
+// sink volume, so the phone slider and the speaker volume are one control.
+static void airplay_volume_to_sink(double vol) {
+  if (mainloop == NULL || context == NULL)
+    return;
+  double linear = pow(10.0, vol / 20.0);
+  if (linear < 0.0)
+    linear = 0.0;
+  if (linear > 1.0)
+    linear = 1.0;
+  pa_threaded_mainloop_lock(mainloop);
+  pa_cvolume cv;
+  pa_cvolume_set(&cv, 2, pa_sw_volume_from_linear(linear));
+  pa_operation *o = pa_context_set_sink_volume_by_name(
+      context, config.pa_sink ? config.pa_sink : "@DEFAULT_SINK@", &cv, NULL, NULL);
+  if (o)
+    pa_operation_unref(o);
+  pa_threaded_mainloop_unlock(mainloop);
+}
+PATCH
+fi
 [ -f configure ] || run autoreconf /tmp/sps.log autoreconf -fi
 # libgcrypt is static here and needs libgpg-error symbols at link time.
 export LIBS="-lgpg-error"
