@@ -6,7 +6,7 @@ func TestPanelSanitize(t *testing.T) {
 	c := defaultPanel()
 	c.Mode = "weird"
 	c.Brightness = 9
-	c.Gain = [3]float64{0, 2, 1}
+	c.Primaries = [3][3]float64{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}
 	c.Saturation = -1
 	c.Pulse = 4
 	c.FadeMS = 5000
@@ -19,8 +19,8 @@ func TestPanelSanitize(t *testing.T) {
 	if c.Brightness != 1 {
 		t.Fatalf("brightness %v", c.Brightness)
 	}
-	if c.Gain[0] != .5 || c.Gain[1] != 1.5 || c.Gain[2] != 1 {
-		t.Fatalf("gain %v", c.Gain)
+	if c.Primaries != [3][3]float64{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}} {
+		t.Fatalf("zero matrix must become identity: %v", c.Primaries)
 	}
 	if c.Saturation != 0 || c.Pulse != 1 || c.FadeMS != 1000 {
 		t.Fatalf("limits %+v", c)
@@ -36,9 +36,38 @@ func TestPanelSanitize(t *testing.T) {
 	}
 
 	c.Mode = "test"
+	c.Primaries = [3][3]float64{{2, -.5, 0}, {0, 1, 0}, {0, 0, 1}}
 	c.sanitize()
 	if c.Mode != "test" {
 		t.Fatal("test mode must survive sanitize")
+	}
+	if c.Primaries[0][0] != 1 || c.Primaries[0][1] != 0 {
+		t.Fatalf("clamp %v", c.Primaries)
+	}
+}
+
+func TestCalibrationMatrix(t *testing.T) {
+	cfg := defaultPanel()
+	// Pure red should leave the ring as a slightly cooler red.
+	cfg.Primaries[0] = [3]float64{1, .2, .4}
+	cols := [12]rgb{}
+	cols[0] = rgb{1, 0, 0}
+	out := applyCalibration(cols, cfg)
+	if out[0] != (rgb{1, .2, .4}) {
+		t.Fatalf("red %v", out[0])
+	}
+	// White sums the primaries and clamps.
+	cols[0] = rgb{1, 1, 1}
+	out = applyCalibration(cols, cfg)
+	want := rgb{1, 1, 1}
+	if out[0] != want {
+		t.Fatalf("white %v", out[0])
+	}
+	// Half input must scale linearly.
+	cols[0] = rgb{.5, 0, 0}
+	out = applyCalibration(cols, cfg)
+	if out[0] != (rgb{.5, .1, .2}) {
+		t.Fatalf("half %v", out[0])
 	}
 }
 

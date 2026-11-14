@@ -1,5 +1,5 @@
 e1dd9b165138d8ae59f050c6b6abe98e075107b39dc7929021e29b06f1996df8  ./bin/capsula-led-media
-68b7e9843d87e65082ea9e02f3387cc99b6f5e4400ff18eb53683416cb58e61d  ./bin/capsula-ui
+3143b5bde83fe6bb6a3276901fcc3dc7a16fa2ce10eab39876700d206a47e850  ./bin/capsula-ui
 8a9ac4999efe61ca7d84556fefeeb3e8facf005e48321aee6be3c6654b5ff3b0  ./bin/nqptp
 35476866f03da0f9dcd2ca3fcb6151e38996d6b95ae9c1e4ab9ce5bb73542605  ./bin/shairport-sync
 fbd088b26fc06043e69012500be16fab6d883bdd1adf12ac0e8d9354858d37a9  ./etc/30-airplay.sh
@@ -16,7 +16,10 @@ baf915640cf716fcc01a6bae6816535acf94ec812ebf8eba3ef26f792874b8ce  ./etc/shairpor
 9660f68eb9368bcddf674978ccf43894d06f84f7d86940bc411843ed06433a14  ./src/capsula-ui/go.sum
 0135657487de033942bb2cd1a4ddd06a4f60b9a8302d321a86d487f71ba5a113  ./src/capsula-ui/main.go
 5418366aaab893b40234bba266ec9cb4f1d6c5045a24e731e20433d0776a5be9  ./src/capsula-ui/main_test.go
-c31e365bfb97eaaf70328e419b6d53fa9525961c25b5583318bdaf5e62b67e7a  ./src/capsula-ui/render.go
+6ac0f42d6b6770de5b20603b2e34ec764d97b22f8e08420f7a1a7a86c09e9b58  ./src/capsula-ui/panel.go
+cde9f51bd24f6d3ab0feb29c3f0ce628416a5f059695db7453c3e24db5f6666c  ./src/capsula-ui/panel.html
+567c335234230bdadfb6f3e4bc3b8c3bf4846ef9bbe30c2d11835d478e05a7fb  ./src/capsula-ui/panel_test.go
+3b11a450f78b9573dc17d0ac06e86ae832c62604859dcf5eb0c6df03c60e8993  ./src/capsula-ui/render.go
 abd6dfe6c51373ba342035a82ac70e07739ad659c61fc00bc813bbe527a532d4  ./src/capsula-ui/render_test.go
 e4327cf77a30bf6d9d2affa885d9e72ddb9add45a34a17e89a4b2951fb429c7a  ./src/capsula-ui/stock_stream.go
 dfe9f52a70921062fb8b85a239d5354bbae35cbcdbb32640fb21c052c234d0b4  ./src/ledctl.c

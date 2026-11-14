@@ -26,14 +26,17 @@ const (
 	panelAddr = ":8088"
 )
 
+// Primaries[i] is the colour sent for input channel i (R, G, B). It doubles as
+// a 3x3 calibration matrix: output[k] = sum_i Primaries[i][k] * input[i].
+// Tuning a primary is how the physical LED hue is matched by eye.
 type panelConfig struct {
-	Mode       string     `json:"mode"` // "auto" or "test"
-	Brightness float64    `json:"brightness"`
-	Gain       [3]float64 `json:"gain"`
-	Saturation float64    `json:"saturation"`
-	Pulse      float64    `json:"pulse"`
-	FadeMS     int        `json:"fadeMs"`
-	Pixels     [][3]int   `json:"pixels"`
+	Mode       string        `json:"mode"` // "auto" or "test"
+	Brightness float64       `json:"brightness"`
+	Primaries  [3][3]float64 `json:"primaries"`
+	Saturation float64       `json:"saturation"`
+	Pulse      float64       `json:"pulse"`
+	FadeMS     int           `json:"fadeMs"`
+	Pixels     [][3]int      `json:"pixels"`
 }
 
 var (
@@ -47,7 +50,8 @@ var (
 )
 
 func defaultPanel() panelConfig {
-	p := panelConfig{Mode: "auto", Brightness: 1, Gain: [3]float64{1, 1, 1},
+	p := panelConfig{Mode: "auto", Brightness: 1,
+		Primaries:  [3][3]float64{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}},
 		Saturation: 1, Pulse: .75, FadeMS: 300}
 	p.Pixels = make([][3]int, 12)
 	for i := range p.Pixels {
@@ -74,8 +78,17 @@ func (p *panelConfig) sanitize() {
 		p.Mode = "auto"
 	}
 	p.Brightness = clampf(p.Brightness, .05, 1)
-	for k := 0; k < 3; k++ {
-		p.Gain[k] = clampf(p.Gain[k], .5, 1.5)
+	zero := true
+	for i := 0; i < 3; i++ {
+		for k := 0; k < 3; k++ {
+			p.Primaries[i][k] = clampf(p.Primaries[i][k], 0, 1)
+			if p.Primaries[i][k] != 0 {
+				zero = false
+			}
+		}
+	}
+	if zero { // a missing or meaningless matrix means identity
+		p.Primaries = [3][3]float64{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}}
 	}
 	p.Saturation = clampf(p.Saturation, 0, 1.5)
 	p.Pulse = clampf(p.Pulse, 0, 1)
@@ -115,17 +128,48 @@ func panelSnapshot() panelConfig {
 // panelRestore keeps the tuning but never boots into a manual frame: a stale
 // test colour must not hide artwork after a reboot.
 func panelRestore() {
-	if data, err := os.ReadFile(panelPath); err == nil {
-		var c panelConfig
-		if json.Unmarshal(data, &c) == nil {
-			panelMu.Lock()
-			panelCfg = c
-			panelMu.Unlock()
+	def := defaultPanel()
+	c := def
+	if raw, err := os.ReadFile(panelPath); err == nil {
+		var in struct {
+			Brightness *float64       `json:"brightness"`
+			Saturation *float64       `json:"saturation"`
+			Pulse      *float64       `json:"pulse"`
+			FadeMS     *int           `json:"fadeMs"`
+			Pixels     [][3]int       `json:"pixels"`
+			Primaries  *[3][3]float64 `json:"primaries"`
+			Gain       *[3]float64    `json:"gain"` // v1.5.2-dev.1 file
+		}
+		if json.Unmarshal(raw, &in) == nil {
+			if in.Brightness != nil {
+				c.Brightness = *in.Brightness
+			}
+			if in.Saturation != nil {
+				c.Saturation = *in.Saturation
+			}
+			if in.Pulse != nil {
+				c.Pulse = *in.Pulse
+			}
+			if in.FadeMS != nil {
+				c.FadeMS = *in.FadeMS
+			}
+			if len(in.Pixels) == 12 {
+				c.Pixels = in.Pixels
+			}
+			if in.Primaries != nil {
+				c.Primaries = *in.Primaries
+			} else if in.Gain != nil {
+				for i := 0; i < 3; i++ {
+					c.Primaries[i] = [3]float64{}
+					c.Primaries[i][i] = in.Gain[i]
+				}
+			}
 		}
 	}
+	c.Mode = "auto"
+	c.sanitize()
 	panelMu.Lock()
-	panelCfg.sanitize()
-	panelCfg.Mode = "auto"
+	panelCfg = c
 	panelMu.Unlock()
 }
 

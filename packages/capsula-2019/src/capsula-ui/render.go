@@ -96,11 +96,17 @@ func paintMini(colors [12]rgb, scale float64) {
 	runtime.KeepAlive(data)
 	miniPainted = true
 }
-func applyGain(colors [12]rgb, cfg panelConfig) [12]rgb {
+
+// applyCalibration maps input RGB through the three calibrated primaries.
+// Primaries[i] is the colour that a pure channel i should produce on the LEDs,
+// so tuning them also compensates hue, not just channel gain.
+func applyCalibration(colors [12]rgb, cfg panelConfig) [12]rgb {
 	out := colors
 	for i := range out {
+		in := colors[i]
 		for k := 0; k < 3; k++ {
-			out[i][k] = math.Min(1, math.Max(0, out[i][k]*cfg.Gain[k]))
+			v := cfg.Primaries[0][k]*in[0] + cfg.Primaries[1][k]*in[1] + cfg.Primaries[2][k]*in[2]
+			out[i][k] = math.Min(1, math.Max(0, v))
 		}
 	}
 	return out
@@ -121,7 +127,7 @@ func saturateColour(c rgb, s float64) rgb {
 // records the visible colours for the panel preview.
 func outputFrame(colors [12]rgb, scale float64) {
 	cfg := panelSnapshot()
-	cols := applyGain(colors, cfg)
+	cols := applyCalibration(colors, cfg)
 	if miniHardware {
 		paintMini(cols, scale)
 	} else {
