@@ -47,6 +47,7 @@ var (
 	panelPalette [][3]int
 	panelLevel   float64
 	panelDirty   bool
+	panelSavedAt int64
 )
 
 func defaultPanel() panelConfig {
@@ -215,8 +216,10 @@ func panelSave() {
 		return
 	}
 	tmp := panelPath + ".new"
-	if os.WriteFile(tmp, b, 0644) == nil {
-		os.Rename(tmp, panelPath)
+	if os.WriteFile(tmp, b, 0644) == nil && os.Rename(tmp, panelPath) == nil {
+		panelMu.Lock()
+		panelSavedAt = time.Now().Unix()
+		panelMu.Unlock()
 	}
 }
 
@@ -260,6 +263,7 @@ type panelView struct {
 	Palette  [][3]int    `json:"palette"`
 	Level    float64     `json:"level"`
 	Hardware string      `json:"hardware"`
+	SavedAt  int64       `json:"savedAt"`
 }
 
 func panelViewNow() panelView {
@@ -272,6 +276,7 @@ func panelViewNow() panelView {
 	v.Active = panelActive
 	v.Palette = append([][3]int(nil), panelPalette...)
 	v.Level = panelLevel
+	v.SavedAt = panelSavedAt
 	panelMu.Unlock()
 	return v
 }
@@ -309,6 +314,18 @@ func panelHandleState(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// panelHandleSave flushes the debounced write immediately, so the panel can
+// show a definite "saved" moment even though edits also persist by themselves.
+func panelHandleSave(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", "POST")
+		panelWriteJSON(w, 405, map[string]string{"error": "method"})
+		return
+	}
+	panelFlush()
+	panelWriteJSON(w, 200, panelViewNow())
+}
+
 func panelHandleReset(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", "POST")
@@ -340,6 +357,7 @@ func servePanel() {
 	mux.HandleFunc("/", panelHandlePage)
 	mux.HandleFunc("/api/state", panelHandleState)
 	mux.HandleFunc("/api/reset", panelHandleReset)
+	mux.HandleFunc("/api/save", panelHandleSave)
 	srv := &http.Server{
 		Addr:              panelAddr,
 		Handler:           mux,
