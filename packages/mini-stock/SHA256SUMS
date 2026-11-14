@@ -1,0 +1,16 @@
+293873708141b748118a5133b4ecd64e5c5d6ccaf39e48844252ddcd08c9db3b  ./bin/capsula-airplay-keys
+72bd92edb56d6677823445d95b9c5cdc05aa6a3627e278d9c94ef69cc2942a28  ./bin/capsula-airplay-ring
+a2073466f340eda557588b5907005c1f33aa2722743842f5e5c5693d7f1f5136  ./bin/capsula-art
+7581f2a9879fcd79db160f57889e80c912cad564edcf446bb3d0d06394c57e67  ./bin/libuuid.so.1.3.0
+8a9ac4999efe61ca7d84556fefeeb3e8facf005e48321aee6be3c6654b5ff3b0  ./bin/nqptp
+d9f3c0dfbd4ffc4d11fdf111859ea98fcf15462e41d532cc5ad3e080788f9524  ./bin/shairport-sync
+793880306e9e62f5de67c8627b381c6af24bbb0d0f5c867bdf014bb1b2030046  ./etc/S50avahi-daemon
+843bb6a73729cf39527fd39feff3d25e32596e582660f5b2792825c3ebfac051  ./etc/S99airplay
+7d8224758d15f497e01b0a573d95dff15b31086f95168d495abfca3f2deb2653  ./etc/init.d.nqptp
+84fed44eb011e1e8dad1a2d4268f784f407686cde252b4f7330116360cfaecca  ./etc/init.d.shairport-sync
+9cbdd78edb6a7bd6b1da5db507dbc1eb2dc9695134d92b20237ce8e02956c913  ./etc/shairport-sync.conf
+6ec3ecbcc956a76ab116642f5d319445b8f0d97148cf8ca5f3aa6971cd7920d0  ./install.sh
+911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad  ./licenses/x-image-LICENSE
+fc3fc91ae1fb7d4bbf0512fc1b626d18148cfd741817db8d79e46f66eedf7d69  ./src/capsula-airplay-keys.c
+f4ce806be611e4cf9614ef04effff2245bacc5eb76f4172f50635df25b92cab9  ./src/capsula-airplay-ring.c
+650d16659515ed78e4f38f8a15f07b93113eb43cf3eedb024af110725e9b6bb7  ./uninstall.sh

@@ -1,0 +1,40 @@
+#!/bin/sh
+# Start/stop shairport-sync (AirPlay 2 receiver).
+#
+# Do not use `pidof shairport-sync` here: a directly executed copy of this
+# script has the same comm name as the daemon ("shairport-sync") and would
+# match itself. The pidfile check below cannot self-match.
+DIR=/data/local/capsula-airplay
+PID=/var/run/shairport-sync.pid
+export LD_LIBRARY_PATH="$DIR/bin"
+
+running() {
+	[ -f "$PID" ] && kill -0 "$(cat "$PID")" 2>/dev/null
+}
+
+case "$1" in
+	start)
+		running && exit 0
+		rm -f "$PID"
+		start-stop-daemon -S -x "$DIR/bin/shairport-sync" -b -m -p "$PID" -- \
+			-c "$DIR/etc/shairport-sync.conf"
+		;;
+	stop)
+		if [ -f "$PID" ]; then
+			start-stop-daemon -K -p "$PID" -s TERM
+			rm -f "$PID"
+		fi
+		;;
+	restart)
+		"$0" stop
+		sleep 1
+		"$0" start
+		;;
+	status)
+		running && echo running || echo stopped
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|status}" >&2
+		exit 1
+		;;
+esac

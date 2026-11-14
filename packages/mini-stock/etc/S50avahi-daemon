@@ -1,0 +1,34 @@
+#!/bin/sh
+# avahi-daemon init script, replaced by the capsula AirPlay package.
+#
+# Why this file exists: the stock script lives on /rom and starts avahi-daemon
+# without --no-drop-root. This kernel is built with CONFIG_ANDROID_PARANOID_NETWORK,
+# so after the normal privilege drop socket() fails with EACCES and avahi exits.
+# The copy below starts avahi correctly, then brings up the AirPlay receiver.
+#
+# It is installed at /etc/init.d/S50avahi-daemon (overlay upper), which is late
+# enough for rcS: S04overlaymount has mounted the overlay and S40/S41 have
+# started the network. Removing this file restores the stock script.
+#
+# Do not rename it to *.sh: rcS sources *.sh files instead of running them.
+
+DAEMON=/usr/sbin/avahi-daemon
+DIR=/data/local/capsula-airplay
+
+case "$1" in
+    start)
+        $DAEMON -c || $DAEMON --no-drop-root -D
+        [ -x "$DIR/S99airplay" ] && sh "$DIR/S99airplay" start
+        ;;
+    stop)
+        [ -x "$DIR/S99airplay" ] && sh "$DIR/S99airplay" stop
+        $DAEMON -c && $DAEMON -k
+        ;;
+    reload)
+        $DAEMON -c && $DAEMON -r
+        ;;
+    *)
+        echo "Usage: S50avahi-daemon {start|stop|reload}" >&2
+        exit 1
+        ;;
+esac

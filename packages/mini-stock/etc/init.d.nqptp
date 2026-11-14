@@ -1,0 +1,42 @@
+#!/bin/sh
+# Start/stop nqptp (AirPlay 2 PTP timing daemon).
+#
+# Do not use `pidof nqptp` here: when this script is executed directly the
+# kernel gives it the same 15-character comm name as the daemon ("nqptp"),
+# so pidof finds the script itself and the guard would exit immediately.
+# The pidfile check below cannot self-match.
+DIR=/data/local/capsula-airplay
+PID=/var/run/nqptp.pid
+
+running() {
+	[ -f "$PID" ] && kill -0 "$(cat "$PID")" 2>/dev/null
+}
+
+case "$1" in
+	start)
+		running && exit 0
+		# A stale POSIX shared-memory segment makes nqptp exit at startup.
+		rm -f "$PID"
+		rm -f /dev/shm/nqptp-*
+		start-stop-daemon -S -x "$DIR/bin/nqptp" -b -m -p "$PID"
+		;;
+	stop)
+		if [ -f "$PID" ]; then
+			start-stop-daemon -K -p "$PID" -s TERM
+			rm -f "$PID"
+		fi
+		rm -f /dev/shm/nqptp-*
+		;;
+	restart)
+		"$0" stop
+		sleep 1
+		"$0" start
+		;;
+	status)
+		running && echo running || echo stopped
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|status}" >&2
+		exit 1
+		;;
+esac
