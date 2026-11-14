@@ -34,7 +34,7 @@ func envelopeStep(rms, reference, envelope, dt float64) (float64, float64) {
 	envelope += (target - envelope) * (1 - math.Exp(-dt/tau))
 	return reference, envelope
 }
-func beatScale(now time.Time) float64 {
+func beatScale(now time.Time, depth float64) float64 {
 	dt := now.Sub(beatLast).Seconds()
 	if beatLast.IsZero() || dt > 1 {
 		dt = .04
@@ -50,7 +50,8 @@ func beatScale(now time.Time) float64 {
 		rms = 0
 	}
 	beatReference, beatEnvelope = envelopeStep(rms, beatReference, beatEnvelope, dt)
-	return .25 + .75*beatEnvelope
+	panelSetLevel(beatEnvelope)
+	return (1 - depth) + depth*beatEnvelope
 }
 
 var miniFile *os.File
@@ -95,6 +96,40 @@ func paintMini(colors [12]rgb, scale float64) {
 	runtime.KeepAlive(data)
 	miniPainted = true
 }
+func applyGain(colors [12]rgb, cfg panelConfig) [12]rgb {
+	out := colors
+	for i := range out {
+		for k := 0; k < 3; k++ {
+			out[i][k] = math.Min(1, math.Max(0, out[i][k]*cfg.Gain[k]))
+		}
+	}
+	return out
+}
+
+func saturateColour(c rgb, s float64) rgb {
+	if s == 1 {
+		return c
+	}
+	l := .2126*c[0] + .7152*c[1] + .0722*c[2]
+	for k := 0; k < 3; k++ {
+		c[k] = math.Min(1, math.Max(0, l+(c[k]-l)*s))
+	}
+	return c
+}
+
+// outputFrame applies the saved channel calibration, writes the ring and
+// records the visible colours for the panel preview.
+func outputFrame(colors [12]rgb, scale float64) {
+	cfg := panelSnapshot()
+	cols := applyGain(colors, cfg)
+	if miniHardware {
+		paintMini(cols, scale)
+	} else {
+		writeBrokerFrame(cols, scale)
+	}
+	panelRecord(cols, scale)
+}
+
 func clearMini() {
 	if !miniPainted || miniBusy() {
 		return

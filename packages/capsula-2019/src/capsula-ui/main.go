@@ -425,14 +425,9 @@ func brightness(hour int) float64 {
 	}
 	return .3
 }
-func writeFrame(colors [12]rgb) {
-	if miniHardware {
-		paintMini(colors, brightness(time.Now().Hour())*beatScale(time.Now()))
-		return
-	}
+func writeBrokerFrame(colors [12]rgb, scale float64) {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%.3f\n", uptime()+1.5)
-	scale := brightness(time.Now().Hour()) * beatScale(time.Now())
 	for _, color := range colors {
 		fmt.Fprintf(&b, "%d %d %d\n", int(color[0]*200*scale), int(color[1]*200*scale), int(color[2]*200*scale))
 	}
@@ -470,6 +465,9 @@ func main() {
 	defer stop()
 	log.SetPrefix("capsula-ui: ")
 	c := &companion{}
+	panelRestore()
+	go servePanel()
+	go panelSaveLoop(ctx)
 	go c.drain(ctx)
 	go c.covers(ctx)
 	if !miniHardware {
@@ -482,6 +480,7 @@ func main() {
 	}
 	defer os.Remove(framePath)
 	defer closeMini()
+	defer panelFlush()
 	tick := time.NewTicker(40 * time.Millisecond)
 	defer tick.Stop()
 	var shown [12]rgb
@@ -505,6 +504,7 @@ func main() {
 		case <-ctx.Done():
 			return
 		case now := <-tick.C:
+			cfg := panelSnapshot()
 			// A 250 ms tick matches the measured station profile: the palm gesture and
 			// the session state trail Alice by at most one tick instead of two.
 			if now.Sub(poll) >= 250*time.Millisecond {
@@ -527,11 +527,27 @@ func main() {
 			}
 			p := append([]rgb(nil), c.palette...)
 			c.Unlock()
+			panelSetStatus(active, p)
+
+			// Manual test ignores session state and beat so the edited colours are
+			// exactly what the ring shows; saved channel gain still applies.
+			if cfg.Mode == "test" {
+				var cols [12]rgb
+				for i := range cols {
+					for k := 0; k < 3; k++ {
+						cols[i][k] = float64(cfg.Pixels[i][k]) / 255
+					}
+				}
+				outputFrame(cols, cfg.Brightness)
+				signature = ""
+				continue
+			}
 			if !active {
 				os.Remove(framePath)
 				if miniHardware {
 					clearMini()
 				}
+				panelRecord([12]rgb{}, 1)
 				signature = ""
 				continue
 			}
@@ -541,20 +557,24 @@ func main() {
 			s := fmt.Sprint(p)
 			if s != signature {
 				old = shown
-				for i := range target {
-					target[i] = sampleGradient(p, float64(i)*float64(len(p))/12)
-				}
 				fade = now
 				signature = s
 			}
-			t := math.Min(1, now.Sub(fade).Seconds()/.3)
+			for i := range target {
+				target[i] = saturateColour(
+					sampleGradient(p, float64(i)*float64(len(p))/12),
+					cfg.Saturation)
+			}
+			fadeSeconds := math.Max(.05, float64(cfg.FadeMS)/1000)
+			t := math.Min(1, now.Sub(fade).Seconds()/fadeSeconds)
 			t = t * t * (3 - 2*t)
 			for i := range shown {
 				for k := 0; k < 3; k++ {
 					shown[i][k] = old[i][k] + (target[i][k]-old[i][k])*t
 				}
 			}
-			writeFrame(shown)
+			scale := brightness(now.Hour()) * beatScale(now, cfg.Pulse) * cfg.Brightness
+			outputFrame(shown, scale)
 		}
 	}
 }

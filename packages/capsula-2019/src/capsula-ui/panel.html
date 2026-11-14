@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Кольцо Капсулы</title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:#0d0f12;color:#e8eaed;font:15px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid #232830;position:sticky;top:0;background:#0d0f12;z-index:2}
+h1{font-size:16px;margin:0;font-weight:600}
+#status{font-size:12px;color:#8b949e;text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+main{padding:12px 16px 40px;max-width:720px;margin:0 auto}
+.ring{position:relative;width:230px;height:230px;margin:6px auto 10px}
+.ring .dot{position:absolute;left:50%;top:50%;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;background:#1b1f24;box-shadow:0 0 0 1px #2b313a;transition:background .08s}
+.ring .dot.sel{outline:2px solid #fff;outline-offset:2px}
+.ring .dot span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;mix-blend-mode:difference;opacity:.8}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+button{flex:1;min-width:110px;padding:10px 12px;border-radius:10px;border:1px solid #30363d;background:#161b22;color:#e8eaed;font:inherit;cursor:pointer}
+button.on{background:#1f6feb;border-color:#1f6feb}
+button:active{transform:scale(.99)}
+section{margin-top:16px;border-top:1px solid #232830;padding-top:14px}
+h2{font-size:13px;margin:0 0 8px;color:#c9d1d9;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.pix{position:relative;aspect-ratio:1;border-radius:8px;border:1px solid #30363d;overflow:hidden;background:#161b22}
+.pix input{position:absolute;inset:-25%;width:150%;height:150%;border:0;padding:0;background:none;cursor:pointer}
+.pix b{position:absolute;left:4px;top:2px;font-size:10px;font-weight:400;color:#fff;mix-blend-mode:difference;pointer-events:none}
+label{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0 2px;font-size:12px;color:#8b949e}
+label .v{color:#c9d1d9;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:#1f6feb}
+.preset{display:flex;gap:6px;flex-wrap:wrap}
+.preset button{flex:0 0 auto;min-width:0;padding:6px 10px;font-size:13px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;min-height:26px}
+.chip{width:26px;height:26px;border-radius:6px;border:1px solid #30363d}
+.note{font-size:12px;color:#8b949e;margin-top:10px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Кольцо Капсулы</h1>
+  <div id="status">загрузка…</div>
+</header>
+<main>
+  <div class="ring" id="ring"></div>
+
+  <div class="row">
+    <button id="mode-auto">Авто (обложка)</button>
+    <button id="mode-test">Ручной тест</button>
+  </div>
+
+  <section>
+    <h2>Пиксели кольца</h2>
+    <div class="grid" id="grid"></div>
+    <div class="row">
+      <button id="fill">Залить всё</button>
+      <button id="off">Погасить</button>
+      <button id="white">Белый</button>
+    </div>
+    <div class="note">Каждое поле красит один пиксель и сразу переводит кольцо в ручной режим.</div>
+  </section>
+
+  <section>
+    <h2>Живые настройки</h2>
+    <label>Яркость <span class="v" id="vb"></span></label>
+    <input type="range" id="brightness" min="5" max="100" step="1">
+    <label>Пульсация <span class="v" id="vp"></span></label>
+    <input type="range" id="pulse" min="0" max="100" step="1">
+    <label>Насыщенность <span class="v" id="vs"></span></label>
+    <input type="range" id="saturation" min="0" max="150" step="1">
+    <label>Плавность <span class="v" id="vf"></span></label>
+    <input type="range" id="fade" min="0" max="1000" step="10">
+    <label>Красный канал <span class="v" id="vr"></span></label>
+    <input type="range" id="gr" min="50" max="150" step="1">
+    <label>Зелёный канал <span class="v" id="vg"></span></label>
+    <input type="range" id="gg" min="50" max="150" step="1">
+    <label>Синий канал <span class="v" id="vgn"></span></label>
+    <input type="range" id="gb" min="50" max="150" step="1">
+  </section>
+
+  <section>
+    <h2>Палитра обложки</h2>
+    <div class="chips" id="chips"><span class="note">обложка ещё не приходила</span></div>
+  </section>
+
+  <div class="row">
+    <button id="reset">Сбросить всё</button>
+  </div>
+  <div class="note">Калибровка сохраняется на колонке. После перезагрузки кольцо
+    всегда стартует в авторежиме; ручной тест нужно включить снова.
+    Порт 8088, только локальная сеть: порт 80 занят стоковым voice-agent.</div>
+</main>
+<script>
+(function(){
+  var cfg=null, sendTimer=null, selected=0;
+  var $=function(s){return document.querySelector(s)};
+  var hex=function(c){return '#'+c.map(function(v){v=Math.max(0,Math.min(255,v|0));return v.toString(16).padStart(2,'0')}).join('')};
+  var unhex=function(h){return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]};
+  var ring=$('#ring'), grid=$('#grid');
+
+  for(var i=0;i<12;i++){
+    var d=document.createElement('div');
+    d.className='dot'; d.dataset.i=i;
+    d.style.transform='rotate('+(i*30)+'deg) translateY(-92px)';
+    d.innerHTML='<span style="transform:rotate(-'+(i*30)+'deg)">'+(i+1)+'</span>';
+    d.onclick=function(){selectPixel(+this.dataset.i)};
+    ring.appendChild(d);
+
+    var p=document.createElement('div');
+    p.className='pix';
+    var inp=document.createElement('input');
+    inp.type='color'; inp.id='px'+i;
+    inp.oninput=function(){var n=+this.id.slice(2);cfg.pixels[n]=unhex(this.value);cfg.mode='test';send()};
+    inp.onchange=function(){selectPixel(+this.id.slice(2))};
+    var b=document.createElement('b'); b.textContent=(i+1);
+    p.appendChild(inp); p.appendChild(b);
+    grid.appendChild(p);
+  }
+
+  function selectPixel(i){
+    selected=i;
+    document.querySelectorAll('.ring .dot').forEach(function(d){d.classList.toggle('sel',+d.dataset.i===i)});
+  }
+  selectPixel(0);
+
+  function paintLive(live){
+    var dots=ring.children;
+    for(var i=0;i<12;i++){dots[i].style.background=hex(live[i])}
+  }
+
+  function renderControls(){
+    $('#brightness').value=Math.round(cfg.brightness*100);
+    $('#pulse').value=Math.round(cfg.pulse*100);
+    $('#saturation').value=Math.round(cfg.saturation*100);
+    $('#fade').value=cfg.fadeMs;
+    $('#gr').value=Math.round(cfg.gain[0]*100);
+    $('#gg').value=Math.round(cfg.gain[1]*100);
+    $('#gb').value=Math.round(cfg.gain[2]*100);
+    $('#vb').textContent=$('#brightness').value+'%';
+    $('#vp').textContent=$('#pulse').value+'%';
+    $('#vs').textContent=$('#saturation').value+'%';
+    $('#vf').textContent=$('#fade').value+' мс';
+    $('#vr').textContent=$('#gr').value+'%';
+    $('#vg').textContent=$('#gg').value+'%';
+    $('#vgn').textContent=$('#gb').value+'%';
+    for(var i=0;i<12;i++){$('#px'+i).value=hex(cfg.pixels[i])}
+    $('#mode-auto').classList.toggle('on',cfg.mode==='auto');
+    $('#mode-test').classList.toggle('on',cfg.mode==='test');
+  }
+
+  function applyView(s){
+    var st=s.active?'AirPlay играет':'ожидание AirPlay';
+    var mode=s.config.mode==='test'?'ручной тест':'авто';
+    $('#status').textContent=st+' · '+mode+' · '+s.hardware;
+    paintLive(s.live);
+    var ch=$('#chips'), pal=s.palette||[];
+    ch.innerHTML='';
+    if(!pal.length){ch.innerHTML='<span class="note">обложка ещё не приходила</span>'}
+    pal.forEach(function(c){var d=document.createElement('div');d.className='chip';d.style.background=hex(c);ch.appendChild(d)});
+  }
+
+  function load(){
+    fetch('api/state').then(function(r){return r.json()}).then(function(s){
+      cfg=s.config; renderControls(); applyView(s);
+    }).catch(function(){ $('#status').textContent='нет связи с колонкой' });
+  }
+
+  function refresh(){
+    fetch('api/state').then(function(r){return r.json()}).then(applyView).catch(function(){});
+  }
+  function send(){
+    if(!cfg) return;
+    clearTimeout(sendTimer);
+    sendTimer=setTimeout(function(){
+      fetch('api/state',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(cfg)})
+        .then(function(r){return r.json()}).then(function(s){
+          applyView(s);
+          // The POST response precedes the next 40 ms render tick; refresh the
+          // preview once after the ring has actually been painted.
+          setTimeout(refresh,90);
+        }).catch(function(){});
+    },120);
+  }
+
+  function bindRange(id,fn,label,suffix){
+    var el=$('#'+id);
+    el.oninput=function(){fn(+this.value); if(label)$(label).textContent=this.value+(suffix||''); send();};
+  }
+  bindRange('brightness',function(v){cfg.brightness=v/100;},'#vb','%');
+  bindRange('pulse',function(v){cfg.pulse=v/100;},'#vp','%');
+  bindRange('saturation',function(v){cfg.saturation=v/100;},'#vs','%');
+  bindRange('fade',function(v){cfg.fadeMs=v;},'#vf',' мс');
+  bindRange('gr',function(v){cfg.gain[0]=v/100;},'#vr','%');
+  bindRange('gg',function(v){cfg.gain[1]=v/100;},'#vg','%');
+  bindRange('gb',function(v){cfg.gain[2]=v/100;},'#vgn','%');
+
+  $('#mode-auto').onclick=function(){cfg.mode='auto';send();renderControls()};
+  $('#mode-test').onclick=function(){cfg.mode='test';send();renderControls()};
+  $('#fill').onclick=function(){
+    var c=unhex($('#px'+selected).value);
+    for(var i=0;i<12;i++){cfg.pixels[i]=c.slice()}
+    cfg.mode='test';renderControls();send();
+  };
+  $('#white').onclick=function(){
+    for(var i=0;i<12;i++){cfg.pixels[i]=[255,255,255]}
+    cfg.mode='test';renderControls();send();
+  };
+  $('#off').onclick=function(){
+    for(var i=0;i<12;i++){cfg.pixels[i]=[0,0,0]}
+    cfg.mode='test';renderControls();send();
+  };
+  $('#reset').onclick=function(){
+    fetch('api/reset',{method:'POST'}).then(function(r){return r.json()}).then(function(s){
+      cfg=s.config;renderControls();applyView(s);
+    });
+  };
+
+  load();
+  setInterval(function(){
+    if(!cfg)return;
+    refresh();
+  },300);
+})();
+</script>
+</body>
+</html>
