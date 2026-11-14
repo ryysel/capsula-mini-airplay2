@@ -63,14 +63,24 @@ func TestLUTIdentity(t *testing.T) {
 	}
 }
 
-func TestDefaultBlackPoint(t *testing.T) {
-	lut := defaultLUT()
-	if got := applyLUT(rgb{0, 0, 0}, &lut); !closeRGB(got, rgb{.06, .06, .06}) {
-		t.Fatalf("default black point %v", got)
+func TestStockCalibration(t *testing.T) {
+	mini := defaultLUTFor(true)
+	if got := applyLUT(rgb{0, 0, 0}, &mini); !closeRGB(got, rgb{.03137, .01176, .02745}) {
+		t.Fatalf("mini black %v", got)
 	}
-	// A black cover must be able to become dark purple.
-	lut[lutIndex(0, 0, 0)] = [3]float64{.18, 0, .28}
-	if got := applyLUT(rgb{0, 0, 0}, &lut); !closeRGB(got, rgb{.18, 0, .28}) {
+	if got := applyLUT(rgb{1, .5, 0}, &mini); !closeRGB(got, rgb{1, .2, 0}) {
+		t.Fatalf("mini orange %v", got)
+	}
+	big := defaultLUTFor(false)
+	if got := applyLUT(rgb{0, 0, 0}, &big); !closeRGB(got, rgb{.02745, 0, .03529}) {
+		t.Fatalf("2019 black %v", got)
+	}
+	if got := applyLUT(rgb{1, 1, 0}, &big); !closeRGB(got, rgb{1, .74510, 0}) {
+		t.Fatalf("2019 yellow %v", got)
+	}
+	// The black point is still editable.
+	big[lutIndex(0, 0, 0)] = [3]float64{.18, 0, .28}
+	if got := applyLUT(rgb{0, 0, 0}, &big); !closeRGB(got, rgb{.18, 0, .28}) {
 		t.Fatalf("purple black point %v", got)
 	}
 }

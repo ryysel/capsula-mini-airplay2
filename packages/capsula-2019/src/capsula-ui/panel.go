@@ -54,10 +54,10 @@ var (
 
 func lutIndex(i, j, k int) int { return (i*3+j)*3 + k }
 
-// defaultLUT is the identity table with a faint baseline at black: a black
-// cover must still glow a little unless the owner tunes that point. The panel
-// "off" action bypasses the table instead of relying on black.
-func defaultLUT() [27][3]float64 {
+// Stock calibration measured by the owner on the two capsule models. Every
+// other node of the table is the identity. Values are the colour actually sent
+// to the LEDs for that point, so they are model-specific.
+func identityLUT() [27][3]float64 {
 	var l [27][3]float64
 	for i := 0; i < 3; i++ {
 		for j := 0; j < 3; j++ {
@@ -66,9 +66,26 @@ func defaultLUT() [27][3]float64 {
 			}
 		}
 	}
-	l[lutIndex(0, 0, 0)] = [3]float64{.06, .06, .06}
 	return l
 }
+
+func defaultLUTFor(mini bool) [27][3]float64 {
+	l := identityLUT()
+	if mini {
+		l[lutIndex(0, 0, 0)] = [3]float64{.03137, .01176, .02745} // black
+		l[lutIndex(1, 1, 1)] = [3]float64{.05098, .05098, .05098} // grey
+		l[lutIndex(2, 1, 0)] = [3]float64{1, .20000, 0}           // orange
+		l[lutIndex(2, 2, 0)] = [3]float64{1, .58431, 0}           // yellow
+	} else {
+		l[lutIndex(0, 0, 0)] = [3]float64{.02745, 0, .03529} // black, dark purple
+		l[lutIndex(1, 1, 1)] = [3]float64{0, 0, 0}           // grey
+		l[lutIndex(2, 1, 0)] = [3]float64{.88627, .14118, 0} // orange
+		l[lutIndex(2, 2, 0)] = [3]float64{1, .74510, 0}      // yellow
+	}
+	return l
+}
+
+func defaultLUT() [27][3]float64 { return defaultLUTFor(miniHardware) }
 
 func defaultPanel() panelConfig {
 	p := panelConfig{Mode: "auto", Brightness: 1, LUT: defaultLUT(),
