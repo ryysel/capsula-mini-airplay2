@@ -26,17 +26,18 @@ const (
 	panelAddr = ":8088"
 )
 
-// Primaries[i] is the colour sent for input channel i (R, G, B). It doubles as
-// a 3x3 calibration matrix: output[k] = sum_i Primaries[i][k] * input[i].
-// Tuning a primary is how the physical LED hue is matched by eye.
+// A 3x3x3 colour table: each axis has 0, 0.5 and 1. Every node stores the
+// colour actually sent to the LEDs for that input. The eight basic points
+// edited in the panel — R, G, B, Y, C, M, orange, W — are nodes of this table,
+// and artwork colours are interpolated between them.
 type panelConfig struct {
-	Mode       string        `json:"mode"` // "auto" or "test"
-	Brightness float64       `json:"brightness"`
-	Primaries  [3][3]float64 `json:"primaries"`
-	Saturation float64       `json:"saturation"`
-	Pulse      float64       `json:"pulse"`
-	FadeMS     int           `json:"fadeMs"`
-	Pixels     [][3]int      `json:"pixels"`
+	Mode       string         `json:"mode"` // "auto" or "test"
+	Brightness float64        `json:"brightness"`
+	LUT        [27][3]float64 `json:"lut"`
+	Saturation float64        `json:"saturation"`
+	Pulse      float64        `json:"pulse"`
+	FadeMS     int            `json:"fadeMs"`
+	Pixels     [][3]int       `json:"pixels"`
 }
 
 var (
@@ -50,9 +51,22 @@ var (
 	panelSavedAt int64
 )
 
+func lutIndex(i, j, k int) int { return (i*3+j)*3 + k }
+
+func defaultLUT() [27][3]float64 {
+	var l [27][3]float64
+	for i := 0; i < 3; i++ {
+		for j := 0; j < 3; j++ {
+			for k := 0; k < 3; k++ {
+				l[lutIndex(i, j, k)] = [3]float64{float64(i) / 2, float64(j) / 2, float64(k) / 2}
+			}
+		}
+	}
+	return l
+}
+
 func defaultPanel() panelConfig {
-	p := panelConfig{Mode: "auto", Brightness: 1,
-		Primaries:  [3][3]float64{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}},
+	p := panelConfig{Mode: "auto", Brightness: 1, LUT: defaultLUT(),
 		Saturation: 1, Pulse: .75, FadeMS: 300}
 	p.Pixels = make([][3]int, 12)
 	for i := range p.Pixels {
@@ -80,16 +94,16 @@ func (p *panelConfig) sanitize() {
 	}
 	p.Brightness = clampf(p.Brightness, .05, 1)
 	zero := true
-	for i := 0; i < 3; i++ {
+	for i := range p.LUT {
 		for k := 0; k < 3; k++ {
-			p.Primaries[i][k] = clampf(p.Primaries[i][k], 0, 1)
-			if p.Primaries[i][k] != 0 {
+			p.LUT[i][k] = clampf(p.LUT[i][k], 0, 1)
+			if p.LUT[i][k] != 0 {
 				zero = false
 			}
 		}
 	}
-	if zero { // a missing or meaningless matrix means identity
-		p.Primaries = [3][3]float64{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}}
+	if zero { // a missing or empty table means identity
+		p.LUT = defaultLUT()
 	}
 	p.Saturation = clampf(p.Saturation, 0, 1.5)
 	p.Pulse = clampf(p.Pulse, 0, 1)
@@ -118,6 +132,24 @@ func (p *panelConfig) sanitize() {
 	}
 }
 
+// lutFromMatrix migrates the earlier 3x3 primary matrix into node values.
+func lutFromMatrix(m [3][3]float64) [27][3]float64 {
+	var l [27][3]float64
+	for i := 0; i < 3; i++ {
+		for j := 0; j < 3; j++ {
+			for k := 0; k < 3; k++ {
+				in := [3]float64{float64(i) / 2, float64(j) / 2, float64(k) / 2}
+				var out [3]float64
+				for ch := 0; ch < 3; ch++ {
+					out[ch] = m[0][ch]*in[0] + m[1][ch]*in[1] + m[2][ch]*in[2]
+				}
+				l[lutIndex(i, j, k)] = out
+			}
+		}
+	}
+	return l
+}
+
 func panelSnapshot() panelConfig {
 	panelMu.Lock()
 	defer panelMu.Unlock()
@@ -133,13 +165,14 @@ func panelRestore() {
 	c := def
 	if raw, err := os.ReadFile(panelPath); err == nil {
 		var in struct {
-			Brightness *float64       `json:"brightness"`
-			Saturation *float64       `json:"saturation"`
-			Pulse      *float64       `json:"pulse"`
-			FadeMS     *int           `json:"fadeMs"`
-			Pixels     [][3]int       `json:"pixels"`
-			Primaries  *[3][3]float64 `json:"primaries"`
-			Gain       *[3]float64    `json:"gain"` // v1.5.2-dev.1 file
+			Brightness *float64        `json:"brightness"`
+			Saturation *float64        `json:"saturation"`
+			Pulse      *float64        `json:"pulse"`
+			FadeMS     *int            `json:"fadeMs"`
+			Pixels     [][3]int        `json:"pixels"`
+			LUT        *[27][3]float64 `json:"lut"`
+			Primaries  *[3][3]float64  `json:"primaries"` // v1.5.2-dev panel files
+			Gain       *[3]float64     `json:"gain"`      // v1.5.2-dev.1 file
 		}
 		if json.Unmarshal(raw, &in) == nil {
 			if in.Brightness != nil {
@@ -157,13 +190,17 @@ func panelRestore() {
 			if len(in.Pixels) == 12 {
 				c.Pixels = in.Pixels
 			}
-			if in.Primaries != nil {
-				c.Primaries = *in.Primaries
-			} else if in.Gain != nil {
+			switch {
+			case in.LUT != nil:
+				c.LUT = *in.LUT
+			case in.Primaries != nil:
+				c.LUT = lutFromMatrix(*in.Primaries)
+			case in.Gain != nil:
+				var m [3][3]float64
 				for i := 0; i < 3; i++ {
-					c.Primaries[i] = [3]float64{}
-					c.Primaries[i][i] = in.Gain[i]
+					m[i][i] = in.Gain[i]
 				}
+				c.LUT = lutFromMatrix(m)
 			}
 		}
 	}
@@ -293,7 +330,7 @@ func panelHandleState(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		panelWriteJSON(w, 200, panelViewNow())
 	case http.MethodPost:
-		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
+		r.Body = http.MaxBytesReader(w, r.Body, 256<<10)
 		var in panelConfig
 		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 			panelWriteJSON(w, 400, map[string]string{"error": "bad json"})

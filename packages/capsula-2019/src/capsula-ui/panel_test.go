@@ -1,12 +1,19 @@
 package main
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
+
+func closeRGB(a, b rgb) bool {
+	return math.Abs(a[0]-b[0]) < 1e-9 && math.Abs(a[1]-b[1]) < 1e-9 && math.Abs(a[2]-b[2]) < 1e-9
+}
 
 func TestPanelSanitize(t *testing.T) {
 	c := defaultPanel()
 	c.Mode = "weird"
 	c.Brightness = 9
-	c.Primaries = [3][3]float64{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}
+	c.LUT = [27][3]float64{}
 	c.Saturation = -1
 	c.Pulse = 4
 	c.FadeMS = 5000
@@ -19,8 +26,8 @@ func TestPanelSanitize(t *testing.T) {
 	if c.Brightness != 1 {
 		t.Fatalf("brightness %v", c.Brightness)
 	}
-	if c.Primaries != [3][3]float64{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}} {
-		t.Fatalf("zero matrix must become identity: %v", c.Primaries)
+	if c.LUT != defaultLUT() {
+		t.Fatal("zero table must become identity")
 	}
 	if c.Saturation != 0 || c.Pulse != 1 || c.FadeMS != 1000 {
 		t.Fatalf("limits %+v", c)
@@ -36,38 +43,61 @@ func TestPanelSanitize(t *testing.T) {
 	}
 
 	c.Mode = "test"
-	c.Primaries = [3][3]float64{{2, -.5, 0}, {0, 1, 0}, {0, 0, 1}}
+	c.LUT[18] = [3]float64{2, -.5, 0}
 	c.sanitize()
 	if c.Mode != "test" {
 		t.Fatal("test mode must survive sanitize")
 	}
-	if c.Primaries[0][0] != 1 || c.Primaries[0][1] != 0 {
-		t.Fatalf("clamp %v", c.Primaries)
+	if c.LUT[18][0] != 1 || c.LUT[18][1] != 0 {
+		t.Fatalf("clamp %v", c.LUT[18])
 	}
 }
 
-func TestCalibrationMatrix(t *testing.T) {
-	cfg := defaultPanel()
-	// Pure red should leave the ring as a slightly cooler red.
-	cfg.Primaries[0] = [3]float64{1, .2, .4}
-	cols := [12]rgb{}
-	cols[0] = rgb{1, 0, 0}
-	out := applyCalibration(cols, cfg)
-	if out[0] != (rgb{1, .2, .4}) {
-		t.Fatalf("red %v", out[0])
+func TestLUTIdentity(t *testing.T) {
+	lut := defaultLUT()
+	for _, c := range []rgb{{0, 0, 0}, {1, 1, 1}, {.2, .4, .6}, {1, .5, 0}, {.25, .75, .5}} {
+		if got := applyLUT(c, &lut); !closeRGB(got, c) {
+			t.Fatalf("identity %v -> %v", c, got)
+		}
 	}
-	// White sums the primaries and clamps.
-	cols[0] = rgb{1, 1, 1}
-	out = applyCalibration(cols, cfg)
-	want := rgb{1, 1, 1}
-	if out[0] != want {
-		t.Fatalf("white %v", out[0])
+}
+
+func TestLUTNodeIsExact(t *testing.T) {
+	lut := defaultLUT()
+	lut[lutIndex(2, 1, 0)] = [3]float64{1, .4, 0} // orange
+	if got := applyLUT(rgb{1, .5, 0}, &lut); !closeRGB(got, rgb{1, .4, 0}) {
+		t.Fatalf("orange node %v", got)
 	}
-	// Half input must scale linearly.
-	cols[0] = rgb{.5, 0, 0}
-	out = applyCalibration(cols, cfg)
-	if out[0] != (rgb{.5, .1, .2}) {
-		t.Fatalf("half %v", out[0])
+	lut[lutIndex(2, 2, 2)] = [3]float64{.9, .9, .8} // white
+	if got := applyLUT(rgb{1, 1, 1}, &lut); !closeRGB(got, rgb{.9, .9, .8}) {
+		t.Fatalf("white node %v", got)
+	}
+}
+
+func TestLUTInterpolatesArtwork(t *testing.T) {
+	lut := defaultLUT()
+	lut[lutIndex(2, 0, 0)] = [3]float64{1, 0, 0}  // red
+	lut[lutIndex(2, 1, 0)] = [3]float64{1, .4, 0} // orange
+	// Halfway between red and orange in the green axis.
+	if got := applyLUT(rgb{1, .25, 0}, &lut); !closeRGB(got, rgb{1, .2, 0}) {
+		t.Fatalf("edge interpolation %v", got)
+	}
+	// A colour outside the edited cell keeps the identity mapping.
+	if got := applyLUT(rgb{0, 0, 1}, &lut); !closeRGB(got, rgb{0, 0, 1}) {
+		t.Fatalf("blue untouched %v", got)
+	}
+}
+
+func TestLUTFromMatrixMigration(t *testing.T) {
+	m := [3][3]float64{{1, 0, 0}, {1, .302, 0}, {0, 0, 1}}
+	lut := lutFromMatrix(m)
+	if got := applyLUT(rgb{0, 1, 0}, &lut); !closeRGB(got, rgb{1, .302, 0}) {
+		t.Fatalf("migrated green %v", got)
+	}
+	// The old matrix moved green towards red, so white also turns magenta:
+	// this is exactly why the per-node table is better for calibration.
+	if got := applyLUT(rgb{1, 1, 1}, &lut); !closeRGB(got, rgb{1, .302, 1}) {
+		t.Fatalf("migrated white %v", got)
 	}
 }
 

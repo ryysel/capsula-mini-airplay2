@@ -97,17 +97,63 @@ func paintMini(colors [12]rgb, scale float64) {
 	miniPainted = true
 }
 
-// applyCalibration maps input RGB through the three calibrated primaries.
-// Primaries[i] is the colour that a pure channel i should produce on the LEDs,
-// so tuning them also compensates hue, not just channel gain.
+// applyCalibration maps input RGB through the 3x3x3 correction table with
+// trilinear interpolation, so edits to the eight basic colours also retune the
+// artwork palette between them.
 func applyCalibration(colors [12]rgb, cfg panelConfig) [12]rgb {
 	out := colors
 	for i := range out {
-		in := colors[i]
-		for k := 0; k < 3; k++ {
-			v := cfg.Primaries[0][k]*in[0] + cfg.Primaries[1][k]*in[1] + cfg.Primaries[2][k]*in[2]
-			out[i][k] = math.Min(1, math.Max(0, v))
+		out[i] = applyLUT(colors[i], &cfg.LUT)
+	}
+	return out
+}
+
+func applyLUT(c rgb, lut *[27][3]float64) rgb {
+	x := clampf(c[0], 0, 1) * 2
+	y := clampf(c[1], 0, 1) * 2
+	z := clampf(c[2], 0, 1) * 2
+	i0 := int(x)
+	if i0 > 1 {
+		i0 = 1
+	}
+	j0 := int(y)
+	if j0 > 1 {
+		j0 = 1
+	}
+	k0 := int(z)
+	if k0 > 1 {
+		k0 = 1
+	}
+	fx, fy, fz := x-float64(i0), y-float64(j0), z-float64(k0)
+	var out rgb
+	for di := 0; di <= 1; di++ {
+		wx := fx
+		if di == 0 {
+			wx = 1 - fx
 		}
+		for dj := 0; dj <= 1; dj++ {
+			wy := fy
+			if dj == 0 {
+				wy = 1 - fy
+			}
+			for dk := 0; dk <= 1; dk++ {
+				wz := fz
+				if dk == 0 {
+					wz = 1 - fz
+				}
+				w := wx * wy * wz
+				if w == 0 {
+					continue
+				}
+				n := lut[lutIndex(i0+di, j0+dj, k0+dk)]
+				for ch := 0; ch < 3; ch++ {
+					out[ch] += w * n[ch]
+				}
+			}
+		}
+	}
+	for ch := 0; ch < 3; ch++ {
+		out[ch] = clampf(out[ch], 0, 1)
 	}
 	return out
 }

@@ -32,7 +32,7 @@ input[type=range]{width:100%;accent-color:#1f6feb}
 .presets{display:flex;gap:8px;flex-wrap:wrap}
 .presets button{flex:0 0 auto;width:44px;height:44px;min-width:0;padding:0;border-radius:50%;border:1px solid #30363d}
 .presets button:active{transform:scale(.94)}
-.cal{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.cal{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
 .cal label{display:flex;flex-direction:column;align-items:stretch;gap:6px;margin:0;font-size:12px;color:#8b949e}
 .cal input[type=color]{width:100%;height:44px;border:1px solid #30363d;border-radius:10px;background:#161b22;padding:2px}
 .chips{display:flex;gap:6px;flex-wrap:wrap;min-height:26px}
@@ -71,16 +71,12 @@ input[type=range]{width:100%;accent-color:#1f6feb}
   </section>
 
   <section>
-    <h2>Калибровка каналов</h2>
-    <div class="cal">
-      <label>Чистый красный → <input type="color" id="pr"></label>
-      <label>Чистый зелёный → <input type="color" id="pg"></label>
-      <label>Чистый синий → <input type="color" id="pb"></label>
-    </div>
-    <div class="note">Каждое поле — это цвет, который реально уходит в кольцо
-      для чистого канала. Если «чистый красный» на колонке выглядит
-      оранжевым, добавь в красный канал немного синего и проверь снова.
-      Матрица применяется и к обложке; белый проверяй кнопкой «Белый».</div>
+    <h2>Цвета основных точек</h2>
+    <div class="cal" id="cal"></div>
+    <div class="note">Каждое поле — цвет, который реально уходит в кольцо для этой
+      точки. По этим восьми точкам интерполируется вся палитра обложки:
+      поправил оранжевый — оранжевые места обложки тоже изменились.
+      Белый задаёт баланс белого.</div>
   </section>
 
   <section>
@@ -158,13 +154,27 @@ input[type=range]{width:100%;accent-color:#1f6feb}
     $('#presets').appendChild(b);
   });
 
+  // Nodes of the 3x3x3 table at 0/0.5/1: index = i*9 + j*3 + k.
+  var nodes=[
+    ['Красный',18],['Зелёный',6],['Синий',2],['Жёлтый',24],
+    ['Голубой',8],['Пурпурный',20],['Оранжевый',21],['Белый',26]
+  ];
+  nodes.forEach(function(item){
+    var lab=document.createElement('label');
+    lab.appendChild(document.createTextNode(item[0]));
+    var inp=document.createElement('input');
+    inp.type='color'; inp.id='n'+item[1];
+    inp.oninput=function(){
+      cfg.lut[item[1]]=unhex(this.value).map(function(v){return v/255});
+      send();
+    };
+    lab.appendChild(inp);
+    $('#cal').appendChild(lab);
+  });
+
   function paintLive(live){
     var dots=ring.children;
     for(var i=0;i<12;i++){dots[i].style.background=hex(live[i])}
-  }
-
-  function primHex(i){
-    return hex(cfg.primaries[i].map(function(v){return v*255}));
   }
 
   function renderControls(){
@@ -176,9 +186,9 @@ input[type=range]{width:100%;accent-color:#1f6feb}
     $('#vp').textContent=$('#pulse').value+'%';
     $('#vs').textContent=$('#saturation').value+'%';
     $('#vf').textContent=$('#fade').value+' мс';
-    $('#pr').value=primHex(0);
-    $('#pg').value=primHex(1);
-    $('#pb').value=primHex(2);
+    nodes.forEach(function(item){
+      $('#n'+item[1]).value=hex(cfg.lut[item[1]].map(function(v){return v*255}));
+    });
     for(var i=0;i<12;i++){$('#px'+i).value=hex(cfg.pixels[i])}
     $('#mode-auto').classList.toggle('on',cfg.mode==='auto');
     $('#mode-test').classList.toggle('on',cfg.mode==='test');
@@ -233,15 +243,6 @@ input[type=range]{width:100%;accent-color:#1f6feb}
   bindRange('pulse',function(v){cfg.pulse=v/100;},'#vp','%');
   bindRange('saturation',function(v){cfg.saturation=v/100;},'#vs','%');
   bindRange('fade',function(v){cfg.fadeMs=v;},'#vf',' мс');
-
-  function bindPrimary(id,idx){
-    var el=$('#'+id);
-    el.oninput=function(){
-      cfg.primaries[idx]=unhex(this.value).map(function(v){return v/255});
-      send();
-    };
-  }
-  bindPrimary('pr',0); bindPrimary('pg',1); bindPrimary('pb',2);
 
   $('#mode-auto').onclick=function(){cfg.mode='auto';send();renderControls()};
   $('#mode-test').onclick=function(){cfg.mode='test';send();renderControls()};
