@@ -5,7 +5,7 @@ set -eu
 conf=${1:?configuration path required}
 mode=${2:-fast_audio}
 case "$mode" in
-    fast_audio) offset=-1.7; buffer=0.15 ;;
+    fast_audio) offset=-1.7; buffer=0.10 ;;
     synchronized) offset=0.0; buffer=0.20 ;;
     *) echo 'timing must be fast_audio or synchronized' >&2; exit 2 ;;
 esac

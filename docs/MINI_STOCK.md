@@ -14,7 +14,7 @@
   PCM. На Mini работает через /dev/topleds, 12 RGB-пикселей и стоковую
   карту 36 каналов. Часы — отдельное устройство, напрямую не записываются.
 - `bin/capsula-airplay-keys` — KEY_PLAYPAUSE в локальный control-сокет.
-- `etc/shairport-sync.conf`: buffer 0.10, offset -1.7, flat volume profile.
+- `etc/shairport-sync.conf`: buffer 0.15, offset -1.7, flat volume profile.
 - `S99airplay` управляет службами, pid-файлы в /var/run.
 - Оверлейный `S50avahi-daemon` запускает avahi --no-drop-root и S99:
   rcS раскрывает список до монтирования оверлея, отдельный новый S99

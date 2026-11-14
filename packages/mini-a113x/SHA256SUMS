@@ -5,14 +5,14 @@ a2073466f340eda557588b5907005c1f33aa2722743842f5e5c5693d7f1f5136  ./bin/capsula-
 291534c5eb8db4e2e919ed91c686fb101bb6163a260effa4665f46ea1e6e7ecc  ./bin/capsule-ipc
 46fa1399c3b1bc8f5680fc67959cfb0c1638b1b10e15c454eac5ae56a6504edf  ./bin/nqptp
 aa57cfee8338ead9aaac53c138107033ba1a31f731d5f95be2148b5d898ef3bc  ./bin/shairport-sync
-fc1e3298d28e9f1a27d204ecbf36a585a13686e96c1e43f86a036ff9c5b530ce  ./etc/apply-timing-profile.sh
+05a3470a317d515ec569a28ad746fd46699b9af3b8b19948ac39ce3a004fbd13  ./etc/apply-timing-profile.sh
 20fb5000f2d6dbadfe93db32ce50c7659b7e2ad76ff127c5676d34f3caccd4b4  ./etc/dbus-policy.conf
 c1f780b1febcb56d6075911a0577ef3efc4f182437938dbbcd8ad4f3d8337623  ./etc/init.d.ap2-bridge
 f6d8211cd8876fde90d91717058892e04b2c643d8faff22b10227bdea36a44ef  ./etc/init.d.capsula-art
 77a4afb3833e4bca96a4c46ad507cb534fef28b2b7c27bd202b4721ff48fa1c6  ./etc/init.d.nqptp
 a8ea1fe836d434ab6edaa00f276f44b7565b637c967370e2f6f682ff79e83b9c  ./etc/init.d.shairport-sync
 2d14976c9ddef6573fba7070f2b503f9c75f2a3ca94f0f5c25fd3571c35027ba  ./etc/marusya-wake
-28f2b225d5ba1e7cd728101611e42d7ec2077c27e60be4249a800e279f74fce0  ./etc/shairport-sync.conf
+90a33aacc7d5c28d3ffa984520056beb6cca1dafaee40a8bc47f9951650b4bb5  ./etc/shairport-sync.conf
 b96cfa896b993ec6312f7ae6485094abcc38ce5e2003aebe22e533ecd18137b2  ./install.sh
 911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad  ./licenses/x-image-LICENSE
 57151ed2d5ffefe4f5b69c16914bb5176790da5d810a1e6b3ed9786050f0fb0c  ./src/capsula-art/BUILD.md
