@@ -125,7 +125,7 @@ input[type=range]{width:100%;accent-color:#1f6feb}
     p.className='pix';
     var inp=document.createElement('input');
     inp.type='color'; inp.id='px'+i;
-    inp.oninput=function(){var n=+this.id.slice(2);cfg.pixels[n]=unhex(this.value);cfg.mode='test';send()};
+    inp.oninput=function(){var n=+this.id.slice(2);cfg.pixels[n]=unhex(this.value);cfg.mode='test';cfg.blank=false;send()};
     inp.onchange=function(){selectPixel(+this.id.slice(2))};
     var b=document.createElement('b'); b.textContent=(i+1);
     p.appendChild(inp); p.appendChild(b);
@@ -139,6 +139,7 @@ input[type=range]{width:100%;accent-color:#1f6feb}
   selectPixel(0);
 
   var presets=[
+    ['Чёрный','#000000'],['Серый','#808080'],
     ['Красный','#ff0000'],['Зелёный','#00ff00'],['Синий','#0000ff'],
     ['Белый','#ffffff'],['Жёлтый','#ffff00'],['Голубой','#00ffff'],
     ['Пурпурный','#ff00ff'],['Оранжевый','#ff8000']
@@ -149,13 +150,14 @@ input[type=range]{width:100%;accent-color:#1f6feb}
     b.onclick=function(){
       var c=unhex(item[1]);
       for(var i=0;i<12;i++){cfg.pixels[i]=c.slice()}
-      cfg.mode='test'; renderControls(); send();
+      cfg.mode='test'; cfg.blank=false; renderControls(); send();
     };
     $('#presets').appendChild(b);
   });
 
   // Nodes of the 3x3x3 table at 0/0.5/1: index = i*9 + j*3 + k.
   var nodes=[
+    ['Чёрный',0],['Серый',13],
     ['Красный',18],['Зелёный',6],['Синий',2],['Жёлтый',24],
     ['Голубой',8],['Пурпурный',20],['Оранжевый',21],['Белый',26]
   ];
@@ -166,6 +168,7 @@ input[type=range]{width:100%;accent-color:#1f6feb}
     inp.type='color'; inp.id='n'+item[1];
     inp.oninput=function(){
       cfg.lut[item[1]]=unhex(this.value).map(function(v){return v/255});
+      cfg.blank=false;
       send();
     };
     lab.appendChild(inp);
@@ -192,6 +195,7 @@ input[type=range]{width:100%;accent-color:#1f6feb}
     for(var i=0;i<12;i++){$('#px'+i).value=hex(cfg.pixels[i])}
     $('#mode-auto').classList.toggle('on',cfg.mode==='auto');
     $('#mode-test').classList.toggle('on',cfg.mode==='test');
+    $('#off').classList.toggle('on',!!cfg.blank);
   }
 
   function savedText(ts){
@@ -244,20 +248,20 @@ input[type=range]{width:100%;accent-color:#1f6feb}
   bindRange('saturation',function(v){cfg.saturation=v/100;},'#vs','%');
   bindRange('fade',function(v){cfg.fadeMs=v;},'#vf',' мс');
 
-  $('#mode-auto').onclick=function(){cfg.mode='auto';send();renderControls()};
-  $('#mode-test').onclick=function(){cfg.mode='test';send();renderControls()};
+  $('#mode-auto').onclick=function(){cfg.mode='auto';cfg.blank=false;send();renderControls()};
+  $('#mode-test').onclick=function(){cfg.mode='test';cfg.blank=false;send();renderControls()};
   $('#fill').onclick=function(){
     var c=unhex($('#px'+selected).value);
     for(var i=0;i<12;i++){cfg.pixels[i]=c.slice()}
-    cfg.mode='test';renderControls();send();
+    cfg.mode='test';cfg.blank=false;renderControls();send();
   };
   $('#white').onclick=function(){
     for(var i=0;i<12;i++){cfg.pixels[i]=[255,255,255]}
-    cfg.mode='test';renderControls();send();
+    cfg.mode='test';cfg.blank=false;renderControls();send();
   };
   $('#off').onclick=function(){
-    for(var i=0;i<12;i++){cfg.pixels[i]=[0,0,0]}
-    cfg.mode='test';renderControls();send();
+    // Real off: the calibrated black point may be purple, so blank instead.
+    cfg.mode='test';cfg.blank=true;renderControls();send();
   };
   function saveNow(){
     if(!cfg)return;

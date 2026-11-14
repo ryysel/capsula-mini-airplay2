@@ -533,12 +533,17 @@ func main() {
 			// exactly what the ring shows; saved channel gain still applies.
 			if cfg.Mode == "test" {
 				var cols [12]rgb
-				for i := range cols {
-					for k := 0; k < 3; k++ {
-						cols[i][k] = float64(cfg.Pixels[i][k]) / 255
+				scale := cfg.Brightness
+				if !cfg.Blank {
+					for i := range cols {
+						for k := 0; k < 3; k++ {
+							cols[i][k] = float64(cfg.Pixels[i][k]) / 255
+						}
 					}
+				} else {
+					scale = 0 // true off, not the calibrated black point
 				}
-				outputFrame(cols, cfg.Brightness)
+				outputFrame(cols, scale)
 				signature = ""
 				continue
 			}
@@ -552,7 +557,9 @@ func main() {
 				continue
 			}
 			if len(p) == 0 {
-				p = []rgb{{.16, .16, .16}}
+				// No artwork (a black cover or none): the black point of the
+				// correction table decides what the ring shows.
+				p = []rgb{{0, 0, 0}}
 			}
 			s := fmt.Sprint(p)
 			if s != signature {

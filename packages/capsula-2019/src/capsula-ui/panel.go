@@ -38,6 +38,7 @@ type panelConfig struct {
 	Pulse      float64        `json:"pulse"`
 	FadeMS     int            `json:"fadeMs"`
 	Pixels     [][3]int       `json:"pixels"`
+	Blank      bool           `json:"blank"` // panel "off": bypass the table
 }
 
 var (
@@ -53,6 +54,9 @@ var (
 
 func lutIndex(i, j, k int) int { return (i*3+j)*3 + k }
 
+// defaultLUT is the identity table with a faint baseline at black: a black
+// cover must still glow a little unless the owner tunes that point. The panel
+// "off" action bypasses the table instead of relying on black.
 func defaultLUT() [27][3]float64 {
 	var l [27][3]float64
 	for i := 0; i < 3; i++ {
@@ -62,6 +66,7 @@ func defaultLUT() [27][3]float64 {
 			}
 		}
 	}
+	l[lutIndex(0, 0, 0)] = [3]float64{.06, .06, .06}
 	return l
 }
 

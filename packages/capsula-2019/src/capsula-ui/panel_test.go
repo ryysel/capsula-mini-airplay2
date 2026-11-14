@@ -54,11 +54,24 @@ func TestPanelSanitize(t *testing.T) {
 }
 
 func TestLUTIdentity(t *testing.T) {
-	lut := defaultLUT()
+	m := [3][3]float64{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}}
+	lut := lutFromMatrix(m)
 	for _, c := range []rgb{{0, 0, 0}, {1, 1, 1}, {.2, .4, .6}, {1, .5, 0}, {.25, .75, .5}} {
 		if got := applyLUT(c, &lut); !closeRGB(got, c) {
 			t.Fatalf("identity %v -> %v", c, got)
 		}
+	}
+}
+
+func TestDefaultBlackPoint(t *testing.T) {
+	lut := defaultLUT()
+	if got := applyLUT(rgb{0, 0, 0}, &lut); !closeRGB(got, rgb{.06, .06, .06}) {
+		t.Fatalf("default black point %v", got)
+	}
+	// A black cover must be able to become dark purple.
+	lut[lutIndex(0, 0, 0)] = [3]float64{.18, 0, .28}
+	if got := applyLUT(rgb{0, 0, 0}, &lut); !closeRGB(got, rgb{.18, 0, .28}) {
+		t.Fatalf("purple black point %v", got)
 	}
 }
 
