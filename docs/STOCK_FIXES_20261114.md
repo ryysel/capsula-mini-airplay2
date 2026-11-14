@@ -48,9 +48,9 @@
 - Mini: cover colours, PCM pulsation and phone/button volume confirmed.
 - 2019: owner confirmed playback after the same backend was ported.
 
-Not established: acoustic alignment with Alice at -1.7, cold boot for either
-capsule after the final changes, and the cause of the earlier spontaneous
-Mini reboot. The Mini boot hook is restored to start the renderer again, but
+Owner confirmed by ear that -1.7 stays in sync with Alice; the delay was not
+measured instrumentally. Not established: cold boot for either capsule after
+the final changes, and the cause of the earlier spontaneous Mini reboot. The Mini boot hook is restored to start the renderer again, but
 a cold boot with it has not been repeated.
 
 ## Retractions
