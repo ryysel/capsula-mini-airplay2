@@ -121,3 +121,16 @@ func TestSchedule(t *testing.T) {
 		}
 	}
 }
+
+func TestPalettePrimariesStayInOwnChannel(t *testing.T) {
+ for k:=0;k<3;k++ {
+   c:=color.RGBA{A:255}
+   if k==0 {c.R=255}; if k==1 {c.G=255}; if k==2 {c.B=255}
+   p,err:=palette(picture(c))
+   if err!=nil||len(p)!=1 {t.Fatalf("%v %v",p,err)}
+   for channel,v:=range p[0] {
+     if channel==k&&v<.8 {t.Fatalf("primary lost %v",p)}
+     if channel!=k&&v>.01 {t.Fatalf("primary channel swapped %v",p)}
+   }
+ }
+}

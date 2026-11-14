@@ -24,10 +24,11 @@ while IFS= read -r line || [ -n "$line" ]; do
     esac
     if [ "$inside" = 1 ]; then
         case "$trimmed" in
-            audio_backend_buffer_desired_length_in_seconds*|audio_backend_latency_offset_in_seconds*|resync_threshold_in_seconds*|drift_tolerance_in_seconds*) continue ;;
+            volume_control_profile*|audio_backend_buffer_desired_length_in_seconds*|audio_backend_latency_offset_in_seconds*|resync_threshold_in_seconds*|drift_tolerance_in_seconds*) continue ;;
             '};'*)
                 printf '\taudio_backend_buffer_desired_length_in_seconds = %s;\n' "$buffer"
                 printf '\taudio_backend_latency_offset_in_seconds = %s;\n' "$offset"
+                printf '\tvolume_control_profile = "flat";\n'
                 printf '\tresync_threshold_in_seconds = 0.050;\n'
                 printf '\tdrift_tolerance_in_seconds = 0.002;\n'
                 inside=0; closed=1 ;;

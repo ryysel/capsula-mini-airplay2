@@ -461,9 +461,13 @@ func brightness(hour int) float64 {
 	return .3
 }
 func writeFrame(colors [12]rgb) {
+	if miniHardware {
+		paintMini(colors, brightness(time.Now().Hour())*beatScale(time.Now()))
+		return
+	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "%.3f\n", uptime()+1.5)
-	scale := brightness(time.Now().Hour())
+	scale := brightness(time.Now().Hour()) * beatScale(time.Now())
 	for _, color := range colors {
 		fmt.Fprintf(&b, "%d %d %d\n", int(color[0]*200*scale), int(color[1]*200*scale), int(color[2]*200*scale))
 	}
@@ -503,10 +507,15 @@ func main() {
 	c := &companion{}
 	go c.drain(ctx)
 	go c.covers(ctx)
-	go c.input(ctx)
+	if !miniHardware {
+		go c.input(ctx)
+	} else {
+		go c.miniLogs(ctx)
+	}
 	go c.logs(ctx)
 	defer os.Remove(framePath)
-	tick := time.NewTicker(100 * time.Millisecond)
+	defer closeMini()
+	tick := time.NewTicker(40 * time.Millisecond)
 	defer tick.Stop()
 	var shown [12]rgb
 	var old [12]rgb
@@ -516,10 +525,14 @@ func main() {
 	active := false
 	poll := time.Time{}
 	purrSilent := false
-	if err := purrMute(false); err != nil {
-		log.Print(err)
+	if !miniHardware {
+		if err := purrMute(false); err != nil {
+			log.Print(err)
+		}
 	}
-	defer purrMute(false)
+	if !miniHardware {
+		defer purrMute(false)
+	}
 	for {
 		select {
 		case <-ctx.Done():
@@ -531,7 +544,7 @@ func main() {
 				active = control("state") == "active"
 				// The purr announces the stock gesture; during a session the gesture is
 				// pause/resume, so the purr must stay silent until the session ends.
-				if active != purrSilent {
+				if !miniHardware && active != purrSilent {
 					if err := purrMute(active); err != nil {
 						log.Print(err)
 					} else {
@@ -547,10 +560,16 @@ func main() {
 			}
 			p := append([]rgb(nil), c.palette...)
 			c.Unlock()
-			if !active || len(p) == 0 {
+			if !active {
 				os.Remove(framePath)
+				if miniHardware {
+					clearMini()
+				}
 				signature = ""
 				continue
+			}
+			if len(p) == 0 {
+				p = []rgb{{.16, .16, .16}}
 			}
 			s := fmt.Sprint(p)
 			if s != signature {

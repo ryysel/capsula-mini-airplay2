@@ -1,83 +1,45 @@
 #!/bin/sh
-# Control script for the AirPlay 2 receiver on VK Capsula Mini stock.
-#
-# Boot wiring: rcS expands /etc/init.d/S??* before the overlay is mounted
-# (S04overlaymount), so this file, which lives in the overlay, is never in the
-# boot list. The package therefore replaces the stock /etc/init.d/S50avahi-daemon
-# in the overlay; that copy starts avahi with --no-drop-root (required on this
-# kernel: CONFIG_ANDROID_PARANOID_NETWORK breaks socket() after the privilege
-# drop) and then calls this script's "start".
-#
-# Everything lives in /data/local/capsula-airplay; the stock firmware and
-# voice-agent are not modified.
-
-DIR=/data/local/capsula-airplay
-export LD_LIBRARY_PATH="$DIR/bin"
-
+# Capsula Mini stock: entry from overlay S50avahi-daemon after overlay mount.
+D=/data/local/capsula-airplay
+export LD_LIBRARY_PATH="$D/bin"
+running() {
+  [ -f "/var/run/$1.pid" ] || return 1
+  p=$(cat "/var/run/$1.pid")
+  [ "$(readlink "/proc/$p/exe" 2>/dev/null)" = "$D/bin/$1" ] && kill -0 "$p" 2>/dev/null
+}
 start_one() {
-	name=$1
-	pid="/var/run/$name.pid"
-	[ -x "$DIR/bin/$name" ] || return 0
-	if [ -f "$pid" ] && kill -0 "$(cat "$pid")" 2>/dev/null; then
-		return 0
-	fi
-	start-stop-daemon -S -x "$DIR/bin/$name" -b -m -p "$pid"
+  running "$1" && return
+  if [ "$1" = capsula-ui ]; then
+    nohup "$D/bin/$1" >>/tmp/capsula-ui.log 2>&1 </dev/null &
+    echo $! >"/var/run/$1.pid"
+  else
+    start-stop-daemon -S -b -m -p "/var/run/$1.pid" -x "$D/bin/$1"
+  fi
 }
-
 stop_one() {
-	name=$1
-	pid="/var/run/$name.pid"
-	if [ -f "$pid" ]; then
-		start-stop-daemon -K -p "$pid" -s TERM
-		rm -f "$pid"
-	fi
+  if running "$1"; then kill "$(cat "/var/run/$1.pid")"; fi
+  rm -f "/var/run/$1.pid"
 }
-
-show_one() {
-	name=$1
-	pid="/var/run/$name.pid"
-	if [ -f "$pid" ] && kill -0 "$(cat "$pid")" 2>/dev/null; then
-		echo "$name: running"
-	else
-		echo "$name: stopped"
-	fi
-}
-
-# Helper scripts are run through sh on purpose: executed directly, a script
-# whose name matches a daemon gets that daemon's comm name, and a pidof based
-# check inside it would match the script itself.
-start() {
-	avahi-daemon -c >/dev/null 2>&1 || avahi-daemon --no-drop-root -D
-	sh "$DIR/init.d/nqptp" start
-	sleep 1
-	sh "$DIR/init.d/shairport-sync" start
-	start_one capsula-airplay-keys
-	start_one capsula-airplay-ring
-}
-
-stop() {
-	stop_one capsula-airplay-ring
-	stop_one capsula-airplay-keys
-	sh "$DIR/init.d/shairport-sync" stop
-	sh "$DIR/init.d/nqptp" stop
-}
-
-status() {
-	show_one nqptp
-	show_one shairport-sync
-	show_one capsula-airplay-keys
-	show_one capsula-airplay-ring
-	if avahi-daemon -c >/dev/null 2>&1; then
-		echo "avahi-daemon: running"
-	else
-		echo "avahi-daemon: stopped"
-	fi
-}
-
 case "$1" in
-	start) start ;;
-	stop) stop ;;
-	restart) stop; sleep 1; start ;;
-	status) status ;;
-	*) echo "Usage: $0 {start|stop|restart|status}" >&2; exit 1 ;;
+start)
+  avahi-daemon -c >/dev/null 2>&1 || avahi-daemon --no-drop-root -D
+  sh "$D/init.d/nqptp" start
+  sleep 1
+  sh "$D/init.d/shairport-sync" start
+  start_one capsula-airplay-keys
+  start_one capsula-ui
+  ;;
+stop)
+  stop_one capsula-ui
+  stop_one capsula-airplay-keys
+  sh "$D/init.d/shairport-sync" stop
+  sh "$D/init.d/nqptp" stop
+  ;;
+restart) sh "$0" stop; sleep 2; sh "$0" start ;;
+status)
+  for name in nqptp shairport-sync capsula-airplay-keys capsula-ui; do
+    if running "$name"; then echo "$name: running"; else echo "$name: stopped"; fi
+  done
+  ;;
+*) echo "Usage: $0 start|stop|restart|status" >&2; exit 2 ;;
 esac

@@ -17,7 +17,7 @@ case "$1" in
 		running && exit 0
 		rm -f "$PID"
 		start-stop-daemon -S -x "$DIR/bin/shairport-sync" -b -m -p "$PID" -- \
-			-c "$DIR/etc/shairport-sync.conf"
+			-c "$DIR/etc/shairport-sync.conf" --log-to-syslog
 		;;
 	stop)
 		if [ -f "$PID" ]; then

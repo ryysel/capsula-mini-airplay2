@@ -1,121 +1,67 @@
-# AirPlay 2 на Капсуле Мини с родной прошивкой
+# Mini на родной ОС: текущее состояние кандидата
 
-Пакет `packages/mini-stock/` ставит AirPlay 2 на стоковую VK Капсулу Мини
-(Buildroot 2022.11.1, glibc 2.33, PulseAudio 16.1, Amlogic A113X) без замены
-прошивки. Всё живёт в `/data/local/capsula-airplay`; `voice-agent`, аккаунт и
-OTA-обновление не трогаются.
+См. [проверки и ограничения](STOCK_FIXES_20261114.md).
 
-## Требования
+Требуется Buildroot/A113X, root и overlay. Для штатной прошивки 44.90
+проверяется точный SHA-256 voice-agent. Нужны 32 000 КиБ в /data при первой
+установке (патч + пакет + запас), 18 000 КиБ при обновлении.
 
-- Проверенная прошивка 44.90, root через ADB, свободные ≥ 25 МиБ в `/data`.
-- Оверлей `/`, смонтированный с `upperdir=/data/overlay/upper` (стоковая схема).
-- Локальная сеть с mDNS и PTP (порт UDP 319/320 для nqptp).
+## Компоненты
 
-## Что устанавливается
+- `bin/shairport-sync`, `bin/nqptp`, bundled `libuuid`.
+- `bin/capsula-ui` — общий Go-компаньон Mini/2019. Считает палитру JPEG,
+  PNG, TIFF, плавно меняет её за 300 мс и модулирует яркость по исходящему
+  PCM. На Mini работает через /dev/topleds, 12 RGB-пикселей и стоковую
+  карту 36 каналов. Часы — отдельное устройство, напрямую не записываются.
+- `bin/capsula-airplay-keys` — KEY_PLAYPAUSE в локальный control-сокет.
+- `etc/shairport-sync.conf`: buffer 0.10, offset -1.7, flat volume profile.
+- `S99airplay` управляет службами, pid-файлы в /var/run.
+- Оверлейный `S50avahi-daemon` запускает avahi --no-drop-root и S99:
+  rcS раскрывает список до монтирования оверлея, отдельный новый S99
+  сам по себе не попадёт в загрузку.
 
-| Файл | Назначение |
-|---|---|
-| `/data/local/capsula-airplay/bin/shairport-sync` | приёмник 5.6.2, сборка под glibc 2.33 |
-| `/data/local/capsula-airplay/bin/nqptp` | PTP-демон 1.2.9 |
-| `/data/local/capsula-airplay/bin/libuuid.so.1.3.0` | зависимость shairport |
-| `/data/local/capsula-airplay/bin/capsula-art` | палитра обложки (Go, из Alpine-пакета) |
-| `/data/local/capsula-airplay/bin/capsula-airplay-keys` | кнопка `KEY_PLAYPAUSE` → control-сокет |
-| `/data/local/capsula-airplay/bin/capsula-airplay-ring` | кольцо: обложка, громкость, дыхание |
-| `/data/local/capsula-airplay/S99airplay` | управление службами (start/stop/status) |
-| `/data/local/capsula-airplay/init.d/` | init-скрипты nqptp и shairport |
-| `/etc/init.d/S99airplay` | копия для ручного запуска |
-| `/etc/init.d/S50avahi-daemon` | оверлейная замена стокового скрипта (см. ниже) |
+## Единая громкость
 
-Конфиг — `/data/local/capsula-airplay/etc/shairport-sync.conf`. При обновлении
-существующий конфиг сохраняется; имя меняется только через `--name`.
+Прямой PulseAudio-обход удалён. AirPlay -30..0 дБ преобразуется через flat
+профиль в native 0..100 и отправляется stereoctl. voice-agent применяет
+свою шкалу к master, цифровому индикатору и сохранённому состоянию.
+Кнопки продолжают от этого же числа, а не от старого отдельного значения.
+Для этого в оверлей ставится патч двух инструкций: локальные события
+remote=0 проходят в native-обработчик, как на большой Капсуле.
+Стоковый /rom/usr/bin/voice-agent не меняется; неизвестный хеш запрещён.
 
-## Почему заменяется S50avahi-daemon
+После первой установки **одна ручная перезагрузка**. Никогда не останавливать
+voice-agent: его контролирует watchdog.
 
-`rcS` в этой прошивке раскрывает список скриптов **до** выполнения:
+## Пульсация и приоритеты
 
-```sh
-for i in /etc/init.d/S??* ;do ... $i start ;done
-```
-
-Оверлей монтируется только на `S04overlaymount.sh`, поэтому файл
-`/etc/init.d/S99airplay`, лежащий в оверлее, в этом списке отсутствует и при
-загрузке не выполняется. Это было подтверждено: после перезагрузки службы не
-поднимались, хотя ручной `S99airplay start` работал, а `rcK` при выключении
-скрипт видел и вызывал.
-
-Рабочее решение без записи в стоковый `/rom`: заменить через оверлей стоковый
-`/etc/init.d/S50avahi-daemon`. Он всё равно нерабочий на этом ядре:
-`CONFIG_ANDROID_PARANOID_NETWORK` не даёт `socket()` после сброса привилегий, и
-стоковый скрипт (без `--no-drop-root`) завершает avahi с ошибкой. Замена
-запускает avahi с `--no-drop-root` и затем вызывает
-`/data/local/capsula-airplay/S99airplay start`. S50 идёт после S04 (оверлей уже
-смонтирован) и после S40/S41 (сеть уже стартовала).
-
-Удаление файла возвращает стоковый скрипт из `/rom`; `uninstall.sh` так и делает.
-
-## Автозапуск: порядок
-
-1. `S50avahi-daemon` (оверлей) → `avahi-daemon --no-drop-root -D`.
-2. `S99airplay start` → `nqptp` → пауза 1 с → `shairport-sync` → `keys` → `ring`.
-
-Службы держат pid-файлы в `/var/run`. Повторный `start` идемпотентен.
-
-### Ловушка с именами скриптов
-
-Внутри init-скриптов **нельзя** использовать `pidof nqptp` / `pidof
-shairport-sync`: при прямом запуске скрипт получает то же 15-символьное `comm`,
-что и демон, и `pidof` находит сам себя. Именно из-за этого `S99airplay`
-молча выходил, пока скрипты вызывались напрямую. Сейчас проверка идёт по
-pid-файлу, а helper-скрипты вызываются через `sh`.
-
-## Громкость
-
-`voice-agent` на стоковой Мини игнорирует `OnVolumeChangedEvent` при
-`remote=0`, поэтому AirPlay-громкость применяется напрямую к PulseAudio-синку
-`master` (`pa_sw_volume_from_dB`). Текущее значение пишется в
-`/tmp/capsula-airplay-volume` и используется кольцом для белой дуги.
-`stereoctl` остаётся только для обратной связи кнопок.
-
-## Кнопка
-
-`csk05t` отдаёт `KEY_PLAYPAUSE` (164), `KEY_VOLUMEUP`, `KEY_VOLUMEDOWN`,
-`KEY_MICMUTE`. `capsula-airplay-keys` пересылает play/pause в control-сокет
-shairport (`/tmp/capsula-airplay-control.sock`). Вне сеанса AirPlay кнопка
-сохраняет штатное действие `voice-agent`.
-
-## Кольцо
-
-- 36 каналов = 12 RGB-пикселей, устройство `/dev/topleds`.
-- Запись — ioctl `0x40107a01` (`struct { u32 start; u32 count; u8 *data; }`),
-  карта каналов повторяет `voice-agent` (меняются местами первые два канала
-  каждого пикселя).
-- Обложка: shairport кладёт её в `/tmp/capsula-airplay-covers`, палитра
-  считается `capsula-art --palette`, демон рисует градиент.
-- Громкость: белая дуга 1,5 с после изменения.
-- Без обложки: слабое белое дыхание.
-- Штатные анимации ассистента и громкости имеют приоритет: демон уступает по
-  меткам в `logread` и возвращает кольцо после сеанса.
-- Часы (`is31fl32xx`, `clock-led1..30`) — отдельное устройство, пакет их не
-  использует.
+Приёмник публикует RMS/peak исходящих PCM-сэмплов в
+/tmp/capsula-airplay-level. Это не микрофон и не произвольная синусоида.
+Компонент оформления использует быструю атаку/плавное затухание и гасит
+пульсацию после устаревания данных. Штатные речь и громкость приоритетны.
+Если обложки нет, используется нейтральный тусклый цвет, а не выдуманная обложка.
+Metadata FIFO постоянно дренируется, чтобы отправка metadata не зависала.
 
 ## Проверка
 
-```sh
-/data/local/capsula-airplay/S99airplay status
-netstat -ltn | grep 7000
-avahi-browse -t -p _airplay._tcp | grep -i mini
-logread | grep -e shairport -e nqptp | tail
-```
+    sh install.sh --check --upgrade
+    sh install.sh --upgrade
+    /data/local/capsula-airplay/S99airplay status
 
-Холодная загрузка проверена: после `reboot` поднимаются avahi, nqptp,
-shairport (:7000), keys и ring; mDNS-имя совпадает с конфигом.
+После первой перезагрузки проверить AirPlay, кольцо и цифровой уровень.
+Аппаратный backend selftest с тишиной и native volume уже проверены;
+проверка музыки/синхрона с Алисой/цветов владельцем на финальной паре ещё нужна.
 
-## Ограничения
+## Удаление
 
-- OTA-обновление не отключается пакетом. Это отдельное решение владельца.
-- Проверенная прошивка — 44.90. На другой версии пути и драйверы могут
-  отличаться; установщик проверит `ID=buildroot`, `amlogic`/`axg` и оверлей.
-- Windows-мастер из `windows/` рассчитан на Мини с Alpine (SSH). Для стоковой
-  Мини установка выполняется командами `sh install.sh` (ADB/SSH).
-- Воспроизведение, громкость с телефона и кнопка требуют живой проверки
-  владельцем: без телефона эти события не воспроизводятся.
+uninstall.sh восстанавливает стоковый voice-agent из /rom атомарно, не
+останавливая процесс, затем нужна ручная перезагрузка. Стоковый S50 также
+восстанавливается копированием: простое удаление в overlayfs оставило бы whiteout.
+OTA и аккаунт установщик не меняет.
+
+## Сборка
+
+Общий renderer: packages/capsula-2019/src/capsula-ui.
+Приёмник: build/build-2019.sh с CAPSULA_STOCK_MODEL=mini-stock.
+Нужны пакеты с исходниками в /work/packages; builder применяет полный
+source overlay последним, поверх исторических inline-патчей.

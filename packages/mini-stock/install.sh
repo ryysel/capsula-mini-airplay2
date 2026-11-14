@@ -67,9 +67,8 @@ AVA_UPPER=/data/overlay/upper/etc/init.d/S50avahi-daemon
 for pair in \
     "bin/shairport-sync|$DEST/bin/shairport-sync" \
     "bin/nqptp|$DEST/bin/nqptp" \
-    "bin/capsula-art|$DEST/bin/capsula-art" \
+    "bin/capsula-ui|$DEST/bin/capsula-ui" \
     "bin/capsula-airplay-keys|$DEST/bin/capsula-airplay-keys" \
-    "bin/capsula-airplay-ring|$DEST/bin/capsula-airplay-ring" \
     "bin/libuuid.so.1.3.0|$DEST/bin/libuuid.so.1.3.0" \
     "etc/init.d.nqptp|$DEST/init.d/nqptp" \
     "etc/init.d.shairport-sync|$DEST/init.d/shairport-sync" \
@@ -85,7 +84,17 @@ done
 [ ! -L "$CONF" ] || die "Refusing symlink: $CONF"
 
 free=$(df -Pk /data | tail -1 | tr -s ' ' | cut -d' ' -f4)
-[ "$free" -ge 25000 ] || die 'Need at least 25 MiB free on /data'
+required=18000
+if [ ! -f /data/overlay/upper/usr/bin/voice-agent ]; then required=32000; fi
+[ "$free" -ge "$required" ] || die "Need $required KiB free on /data (backup + native-volume patch)"
+stock=$(sha256sum /rom/usr/bin/voice-agent | cut -d' ' -f1)
+[ "$stock" = e91c758edaae7ef258691438439906b4bd5986609a3be9fde946e59fc15ed9b7 ] ||
+    die 'Unknown Mini voice-agent build; no patch or installation attempted'
+if [ -e /data/overlay/upper/usr/bin/voice-agent ]; then
+    patched=$(sha256sum /data/overlay/upper/usr/bin/voice-agent | cut -d' ' -f1)
+    [ "$patched" = 7282da6b2bcfe5dfe94c53753eee9a5f07e1dfb68d52e1103c41860753658ed6 ] ||
+        die 'Unknown existing voice-agent overlay; refusing to overwrite'
+fi
 
 if [ "$check" = yes ]; then
     echo 'PREFLIGHT_PASS stock-mini'
@@ -100,7 +109,7 @@ if [ -d "$DEST" ]; then
 fi
 
 # Stop only our services; voice-agent and the watchdog stay untouched.
-for svc in capsula-airplay-ring capsula-airplay-keys; do
+for svc in capsula-ui capsula-airplay-ring capsula-airplay-keys; do
     pidfile=/var/run/$svc.pid
     if [ -f "$pidfile" ]; then
         kill "$(cat "$pidfile")" 2>/dev/null || true
@@ -118,8 +127,9 @@ done
 [ "$i" -lt 10 ] || die 'Could not stop the previous receiver; reboot and retry'
 rm -f /dev/shm/nqptp-*
 
+sh "$root/voice-agent-volume-patch.sh"
 mkdir -p "$DEST/bin" "$DEST/etc" "$DEST/init.d"
-for f in shairport-sync nqptp capsula-art capsula-airplay-keys capsula-airplay-ring; do
+for f in shairport-sync nqptp capsula-ui capsula-airplay-keys; do
     cp "bin/$f" "$DEST/bin/$f"
     chmod 0755 "$DEST/bin/$f"
 done
@@ -153,7 +163,11 @@ case "$timing_mode" in
 esac
 : > "$CONF.new"
 while IFS= read -r line || [ -n "$line" ]; do
-    if printf '%s' "$line" | grep -q '^[[:space:]]*audio_backend_buffer_desired_length_in_seconds'; then
+    if printf '%s' "$line" | grep -q '^[[:space:]]*volume_control_profile'; then
+        continue
+    elif printf '%s' "$line" | grep -q '^[[:space:]]*volume_range_db'; then
+        printf '%s\n\tvolume_control_profile = "flat";\n' "$line"
+    elif printf '%s' "$line" | grep -q '^[[:space:]]*audio_backend_buffer_desired_length_in_seconds'; then
         printf '\taudio_backend_buffer_desired_length_in_seconds = %s;\n' "$buffer"
     elif printf '%s' "$line" | grep -q '^[[:space:]]*audio_backend_latency_offset_in_seconds'; then
         printf '\taudio_backend_latency_offset_in_seconds = %s;\n' "$offset"
@@ -185,4 +199,6 @@ while [ "$i" -lt 15 ] && ! pidof nqptp >/dev/null; do
 done
 pidof nqptp >/dev/null || die "nqptp failed to start. Backup: $backup"
 avahi-daemon -c >/dev/null 2>&1 || die "avahi-daemon is not running. Backup: $backup"
+pidof capsula-ui >/dev/null || die 'capsula-ui failed'
 echo "INSTALL_PASS stock-mini backup=$backup"
+echo 'Native volume patch requires one manual reboot on first install. Never stop voice-agent.'

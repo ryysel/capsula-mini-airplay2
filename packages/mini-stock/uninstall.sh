@@ -1,23 +1,25 @@
 #!/bin/sh
-# Remove the AirPlay 2 receiver installed by install.sh on VK Capsula Mini stock.
 set -eu
 uid=$(grep '^Uid:' /proc/self/status | cut -f2)
 [ "$uid" = 0 ] || { echo 'Run as root' >&2; exit 1; }
-
-# Stop the services through the control script when it is still present.
-if [ -x /data/local/capsula-airplay/S99airplay ]; then
-    sh /data/local/capsula-airplay/S99airplay stop || true
+D=/data/local/capsula-airplay
+UPPER=/data/overlay/upper/usr/bin/voice-agent
+PATCHED=7282da6b2bcfe5dfe94c53753eee9a5f07e1dfb68d52e1103c41860753658ed6
+if [ -e "$UPPER" ]; then
+  current=$(sha256sum "$UPPER" | cut -d' ' -f1)
+  [ "$current" = "$PATCHED" ] || { echo 'Unknown voice-agent overlay; refusing'; exit 1; }
+  # Restore the stock path atomically; never stop the running voice-agent.
+  cp /rom/usr/bin/voice-agent /usr/bin/voice-agent.rollback
+  chmod 755 /usr/bin/voice-agent.rollback
+  mv /usr/bin/voice-agent.rollback /usr/bin/voice-agent
 fi
-if [ -x /etc/init.d/S99airplay ]; then
-    /etc/init.d/S99airplay stop || true
-fi
-
+if [ -x "$D/S99airplay" ]; then sh "$D/S99airplay" stop || true; fi
+# Unlinking through overlayfs would white-out the lower script, NOT reveal it.
+# Restore its original bytes instead.
+cp /rom/etc/init.d/S50avahi-daemon /etc/init.d/S50avahi-daemon.rollback
+chmod 755 /etc/init.d/S50avahi-daemon.rollback
+mv /etc/init.d/S50avahi-daemon.rollback /etc/init.d/S50avahi-daemon
 rm -f /etc/init.d/S99airplay
-# Removing the overlay copy restores the stock avahi script from /rom.
-rm -f /etc/init.d/S50avahi-daemon
-rm -rf /data/local/capsula-airplay
-rm -f /var/run/capsula-airplay-keys.pid /var/run/capsula-airplay-ring.pid
-rm -f /var/run/nqptp.pid /var/run/shairport-sync.pid
-
-echo 'Removed. The stock firmware, voice-agent and the OTA stub were left untouched.'
-echo 'Backups from install.sh remain as /data/local/capsula-airplay.backup-*.'
+rm -rf "$D"
+echo 'AirPlay removed. Firmware and account preserved; backups remain.'
+echo 'Reboot manually to load the stock voice-agent again.'

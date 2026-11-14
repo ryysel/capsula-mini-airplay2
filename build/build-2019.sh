@@ -340,6 +340,16 @@ fi
 if ! grep -q 'capsula_media_control_start();' audio_pa.c; then
     sed -i '/static int init(__attribute__((unused))/a\  extern void capsula_media_control_start(void);\n  capsula_media_control_start();' audio_pa.c
 fi
+# Always apply the audited complete source overlay last, not the historical
+# inline patches above. Both stock models use the same dependency toolchain.
+model=${CAPSULA_STOCK_MODEL:-capsula-2019}
+case "$model" in capsula-2019|mini-stock) ;; *) echo 'Unknown stock model' >&2; exit 2 ;; esac
+overlay=${CAPSULA_SOURCE_OVERLAY:-$WORK/packages/$model/src/receiver}
+test -f "$overlay/capsula-audio-helpers.h" || {
+    echo "Missing audited receiver sources at $overlay" >&2; exit 1;
+}
+cp "$overlay/audio_pa.c" "$overlay/rtsp.c" "$overlay/shairport.c" \
+   "$overlay/capsula-audio-helpers.h" "$overlay/capsula-media-control.c" .
 run autoreconf /tmp/sps.log autoreconf -fi
 # libgcrypt is static here and needs libgpg-error symbols at link time.
 export LIBS="-lgpg-error"
