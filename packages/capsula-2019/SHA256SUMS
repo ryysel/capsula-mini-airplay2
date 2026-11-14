@@ -1,5 +1,5 @@
 e1dd9b165138d8ae59f050c6b6abe98e075107b39dc7929021e29b06f1996df8  ./bin/capsula-led-media
-dd0f6ffe8c038c21b323e88532d29d18bfa38d09ed094a3c9a162e38631c8252  ./bin/capsula-ui
+8a4b30a2a30d8a3a95b90dee794d9e4c4050f22e1325abb3d26ae7a10d9f4ecc  ./bin/capsula-ui
 8a9ac4999efe61ca7d84556fefeeb3e8facf005e48321aee6be3c6654b5ff3b0  ./bin/nqptp
 35476866f03da0f9dcd2ca3fcb6151e38996d6b95ae9c1e4ab9ce5bb73542605  ./bin/shairport-sync
 fbd088b26fc06043e69012500be16fab6d883bdd1adf12ac0e8d9354858d37a9  ./etc/30-airplay.sh
