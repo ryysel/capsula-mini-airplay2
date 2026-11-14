@@ -367,63 +367,28 @@ func (c *companion) input(ctx context.Context) {
 	}
 }
 func (c *companion) logs(ctx context.Context) {
-	last := ""
-	initialized := false
-	ticker := time.NewTicker(250 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-		}
-		// The journal only matters while a session can turn a palm press into
-		// pause/resume; polling logread when idle is wasted CPU on this SoC.
+	followStock(ctx, func(line string) {
 		c.Lock()
-		active := c.active
-		c.Unlock()
-		if !active {
-			last = ""
-			initialized = false
-			continue
-		}
-		cmd := exec.CommandContext(ctx, "logread")
-		raw, err := cmd.Output()
-		if err != nil {
-			continue
-		}
-		found := ""
-		busy := false
-		done := false
-		for _, line := range strings.Split(string(raw), "\n") {
-			if strings.Contains(line, "[purr.cpp:") && strings.Contains(line, "PURR:") {
-				found = line
-			}
-			if strings.Contains(line, "=> PHRASE_IN_PROGRESS") || strings.Contains(line, "SPEECH: start") {
-				busy = true
-				done = false
-			}
-			if strings.Contains(line, "onSpeechPlaybackFinished") || strings.Contains(line, "=> WAITING_FOR_KEYWORD") {
-				done = true
-				busy = false
-			}
-		}
-		c.Lock()
-		if busy {
+		if strings.Contains(line, "=> PHRASE_IN_PROGRESS") ||
+			strings.Contains(line, "SPEECH: start") {
 			c.speechUntil = time.Now().Add(2 * time.Second)
-		} else if done {
+		}
+		if strings.Contains(line, "onSpeechPlaybackFinished") ||
+			strings.Contains(line, "SPEECH: stop") ||
+			strings.Contains(line, "=> WAITING_FOR_KEYWORD") {
 			c.speechUntil = time.Time{}
 		}
-		if found != "" && initialized && found != last && c.active && !c.latched && time.Now().After(c.speechUntil) {
+		toggle := strings.Contains(line, "[purr.cpp:") &&
+			strings.Contains(line, "PURR:") && c.active && !c.latched &&
+			time.Now().After(c.speechUntil)
+		if toggle {
 			c.latched = true
-			c.Unlock()
-			log.Print("palm toggle: ", control("toggle"))
-			c.Lock()
 		}
 		c.Unlock()
-		last = found
-		initialized = true
-	}
+		if toggle {
+			log.Print("palm toggle: ", control("toggle"))
+		}
+	})
 }
 
 // The stock purr confirms the palm gesture. While AirPlay is playing the same
@@ -512,7 +477,9 @@ func main() {
 	} else {
 		go c.miniLogs(ctx)
 	}
-	go c.logs(ctx)
+	if !miniHardware {
+		go c.logs(ctx)
+	}
 	defer os.Remove(framePath)
 	defer closeMini()
 	tick := time.NewTicker(40 * time.Millisecond)

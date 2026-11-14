@@ -1234,7 +1234,7 @@ plist_t generateInfoPlist(rtsp_conn_info *conn) {
           }
           bufferStreamFormats |= 0x00000800000L; // AAC-LC/48K/F24/2
         }
-
+        
         {
           if (config.eight_channel_layout != 0)
             bufferStreamFormats |= 0x10000000000L; // AAC-LC/48K/F24/7.1
@@ -2177,7 +2177,7 @@ void handle_post(rtsp_conn_info *conn, rtsp_message *req, rtsp_message *resp) {
       free(conn->ap2_client_name);
     conn->ap2_client_name = strdup(hdr);
   }
-
+  
 #ifdef CONFIG_AIRPLAY_2
 #ifdef CONFIG_METADATA
   hdr = msg_get_header(req, "X-Apple-AbsoluteTime");
@@ -2202,7 +2202,7 @@ void handle_post(rtsp_conn_info *conn, rtsp_message *req, rtsp_message *resp) {
   }
 #endif
 #endif
-
+   
   if (strcmp(req->path, "/pair-setup") == 0) {
     handle_pair_setup(conn, req, resp);
   } else if (strcmp(req->path, "/pair-verify") == 0) {
@@ -2521,7 +2521,7 @@ void handle_setup_2(rtsp_conn_info *conn, rtsp_message *req, rtsp_message *resp)
         // timingPeerList
         if (conn->airplay_stream_category == ptp_stream) {
           debug_log_rtsp_message(3, "SETUP (no streams) \"PTP\" message", req);
-          // Get the Group UUID
+          // Get the Group UUID      
           plist_t groupUUID = plist_dict_get_item(messagePlist, "groupUUID");
           if (groupUUID) {
             char *gid = NULL;
@@ -2690,7 +2690,7 @@ void handle_setup_2(rtsp_conn_info *conn, rtsp_message *req, rtsp_message *resp)
   } else {
     // we have a streams item, to this seems to be the second phase of a setup
     if (conn->airplay_stream_category == ptp_stream) {
-
+      
       // probably don't need this check...
       /*
       if (conn->player_thread) {
@@ -2699,7 +2699,7 @@ void handle_setup_2(rtsp_conn_info *conn, rtsp_message *req, rtsp_message *resp)
         activity_monitor_signify_activity(0); // inactive, and should be after command_stop()
       }
       */
-
+      
       // airplay 2 always allows interruption, so should never return
       // play_lock_aquisition_failed
       if (get_play_lock(conn, 1) != play_lock_aquisition_failed) {
@@ -2720,12 +2720,12 @@ void handle_setup_2(rtsp_conn_info *conn, rtsp_message *req, rtsp_message *resp)
         ptp_send_control_message_string(
             "B"); // signify clock dependability period is "B"eginning (or continuing)
         plist_t stream0 = plist_array_get_item(streams, 0);
-
+  
         plist_t streams_array = plist_new_array(); // to hold the ports and stuff
         plist_t stream0dict = plist_new_dict();
-
+  
         // get the session key -- it must have one
-
+  
         plist_t item = plist_dict_get_item(stream0, "shk"); // session key
         uint64_t item_value = 0;
         if (item != NULL) {
@@ -2752,7 +2752,7 @@ void handle_setup_2(rtsp_conn_info *conn, rtsp_message *req, rtsp_message *resp)
           // memcpy(zeroSessionKey, conn->pair_setup_result->shared_secret, 32);
           //conn->session_key = zeroSessionKey;
         }
-
+  
         // get the compression type
         // this seems to be static -- a stream's encoding can change dynamically, it seems
         item = plist_dict_get_item(stream0, "ct"); // compression type
@@ -2763,7 +2763,7 @@ void handle_setup_2(rtsp_conn_info *conn, rtsp_message *req, rtsp_message *resp)
         } else {
           debug(1, "No compression type (ct) property found in setup.");
         }
-
+  
         // get the max frames per packet
         item = plist_dict_get_item(stream0, "spf"); // samples per frame (?)
         if (item != NULL) {
@@ -2774,7 +2774,7 @@ void handle_setup_2(rtsp_conn_info *conn, rtsp_message *req, rtsp_message *resp)
         } else {
           warn("No frames per packet (spf) property found in setup!");
         }
-
+  
         // bind a new UDP port and get a socket
         conn->local_ap2_control_port = 0; // any port
         err = bind_socket_and_port(SOCK_DGRAM, conn->connection_ip_family, conn->self_ip_string,
@@ -2785,12 +2785,12 @@ void handle_setup_2(rtsp_conn_info *conn, rtsp_message *req, rtsp_message *resp)
         }
         debug(2, "Connection %d: UDP control port opened: %u.", conn->connection_number,
               conn->local_ap2_control_port);
-
+  
         named_pthread_create(&conn->rtp_ap2_control_thread, NULL, &rtp_ap2_control_receiver,
                              (void *)conn, "ap2_cn_%d", conn->connection_number);
-
+  
         // get the DACP-ID and Active Remote for remote control stuff
-
+  
         char *ar = msg_get_header(req, "Active-Remote");
         if (ar) {
           debug(3, "Connection %d: SETUP AP2 -- Active-Remote string seen: \"%s\".",
@@ -2810,7 +2810,7 @@ void handle_setup_2(rtsp_conn_info *conn, rtsp_message *req, rtsp_message *resp)
             conn->dacp_active_remote = NULL;
           }
         }
-
+  
         ar = msg_get_header(req, "DACP-ID");
         if (ar) {
           debug(3, "Connection %d: SETUP AP2 -- DACP-ID string seen: \"%s\".",
@@ -2829,7 +2829,7 @@ void handle_setup_2(rtsp_conn_info *conn, rtsp_message *req, rtsp_message *resp)
             conn->dacp_id = NULL;
           }
         }
-
+  
         // now, get the type of the stream.
         item = plist_dict_get_item(stream0, "type");
         item_value = 0;
@@ -2839,7 +2839,7 @@ void handle_setup_2(rtsp_conn_info *conn, rtsp_message *req, rtsp_message *resp)
         case 96: {
           debug(4, "Connection %d. AP2 Realtime Audio Stream SETUP.", conn->connection_number);
           debug_log_rtsp_message(4, "AP2 Realtime Audio Stream SETUP incoming message:", req);
-
+  
           conn->stream.type = ast_apple_lossless;
           conn->airplay_stream_type = realtime_stream;
           // get the sample rate
@@ -2853,7 +2853,7 @@ void handle_setup_2(rtsp_conn_info *conn, rtsp_message *req, rtsp_message *resp)
             debug(1, "Connection %d. No sample rate (sr) property found in setup.",
                   conn->connection_number);
           }
-
+  
           item = plist_dict_get_item(stream0, "spf"); // samples per frame
           if (item != NULL) {
             plist_get_uint_val(item, &item_value);
@@ -2863,7 +2863,7 @@ void handle_setup_2(rtsp_conn_info *conn, rtsp_message *req, rtsp_message *resp)
             debug(1, "Connection %d. No samples per frame (spf) property found in setup.",
                   conn->connection_number);
           }
-
+  
           // bind a new UDP port and get a socket
           conn->local_realtime_audio_port = 0; // any port
           err = bind_socket_and_port(SOCK_DGRAM, conn->connection_ip_family, conn->self_ip_string,
@@ -2874,23 +2874,23 @@ void handle_setup_2(rtsp_conn_info *conn, rtsp_message *req, rtsp_message *resp)
           }
           debug(2, "Connection %d: UDP realtime audio port opened: %u.", conn->connection_number,
                 conn->local_realtime_audio_port);
-
+  
           named_pthread_create(&conn->rtp_realtime_audio_thread, NULL, &rtp_realtime_audio_receiver,
                                (void *)conn, "ap2_ra_%d", conn->connection_number);
           plist_dict_set_item(stream0dict, "type", plist_new_uint(96));
           plist_dict_set_item(stream0dict, "dataPort",
                               plist_new_uint(conn->local_realtime_audio_port));
-
+  
           debug(2, "Realtime Stream Play");
           activity_monitor_signify_activity(1);
           player_play(conn);
-
+  
           conn->rtp_running = 1; // hack!
         } break;
         case 103: {
           debug_log_rtsp_message(3, "Buffered Audio Stream SETUP incoming message", req);
           conn->airplay_stream_type = buffered_stream;
-
+  
           // get the audio format code
           item = plist_dict_get_item(stream0, "audioFormat"); // audio format
           if (item != NULL) {
@@ -2900,7 +2900,7 @@ void handle_setup_2(rtsp_conn_info *conn, rtsp_message *req, rtsp_message *resp)
           } else {
             debug(1, "No audio format (audioFormat) property found in setup.");
           }
-
+  
           // bind a new TCP port and get a socket
           conn->local_buffered_audio_port = 0; // any port
           err = bind_socket_and_port(SOCK_STREAM, conn->connection_ip_family, conn->self_ip_string,
@@ -2911,26 +2911,26 @@ void handle_setup_2(rtsp_conn_info *conn, rtsp_message *req, rtsp_message *resp)
                 "buffered_audio port",
                 conn->connection_number, err);
           }
-
+  
           listen(conn->buffered_audio_socket, 128); // ensure it's open before telling the client
-
+  
           debug(2, "Connection %d: TCP Buffered Audio port opened: %u.", conn->connection_number,
                 conn->local_buffered_audio_port);
-
+  
           activity_monitor_signify_activity(1);
-
+  
           // debug(1, "Connection %d: create rtp_buffered_audio_thread", conn->connection_number);
-
+  
           named_pthread_create_with_priority(&conn->rtp_buffered_audio_thread, 2,
                                              &rtp_buffered_audio_processor, (void *)conn, "ap2_ba_%d",
                                              conn->connection_number);
-
+  
           plist_dict_set_item(stream0dict, "type", plist_new_uint(103));
           plist_dict_set_item(stream0dict, "dataPort",
                               plist_new_uint(conn->local_buffered_audio_port));
           plist_dict_set_item(stream0dict, "audioBufferSize",
                               plist_new_uint(conn->ap2_audio_buffer_size));
-
+  
           // this should be cancelled by an activity_monitor_signify_activity(1)
           // call in the SETRATEANCHORI handler, which should come up right away
           activity_monitor_signify_activity(0);
@@ -2946,12 +2946,12 @@ void handle_setup_2(rtsp_conn_info *conn, rtsp_message *req, rtsp_message *resp)
                 conn->connection_number, item_value);
           debug_log_rtsp_message(1, "Unhandled stream type incoming message", req);
         }
-
+  
         plist_dict_set_item(stream0dict, "controlPort", plist_new_uint(conn->local_ap2_control_port));
-
+  
         plist_array_append_item(streams_array, stream0dict);
         plist_dict_set_item(setupResponsePlist, "streams", streams_array);
-
+  
         // since the GID from the client has been acquired, update the airplay bonjour strings.
         build_bonjour_strings(conn);
         debug(2, "Connection %d: SETUP mdns_update on %s.", conn->connection_number,

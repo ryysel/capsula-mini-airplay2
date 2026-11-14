@@ -9,7 +9,7 @@ for pkg in capsula-2019 mini-a113x; do
     cp "$root/packages/$pkg/etc/shairport-sync.conf" "$tmp/config"
     sh "$helper" "$tmp/config" fast_audio
     grep -q 'audio_backend_latency_offset_in_seconds = -1.7;' "$tmp/config"
-    grep -q 'audio_backend_buffer_desired_length_in_seconds = 0.10;' "$tmp/config"
+    grep -q 'audio_backend_buffer_desired_length_in_seconds = 0.15;' "$tmp/config"
     test "$(grep -c '^[[:space:]]*audio_backend_latency_offset_in_seconds' "$tmp/config")" = 1
     if [ "$pkg" = capsula-2019 ]; then
         test "$(grep -c '^[[:space:]]*volume_control_profile' "$tmp/config")" = 1

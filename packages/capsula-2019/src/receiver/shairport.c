@@ -593,7 +593,7 @@ int parse_options(int argc, char **argv) {
   // seconds then we can add an offset of 5.17 seconds and still leave a second's worth of buffers
   // for unexpected circumstances
 
-  config.model = strdup("AudioAccessory5,1");
+  config.model = strdup("AudioAccessory1,1");
   // config.model = strdup("AirPort10,115");
   //  config.model = strdup("AudioAccessory5,1");
 
@@ -682,7 +682,7 @@ int parse_options(int argc, char **argv) {
     free(config_text);
     if (comment_free_config_text == NULL)
       die("Error removing comments from the configuration file \"%s\": \"%s\".", config_file_real_path,
-          strerror(errno));
+          strerror(errno));   
     char *expanded_config_text = expand_environment_variables(comment_free_config_text, config_file_real_path);
     free(comment_free_config_text);
     /* Parse the expanded text. If there is an error, report it and exit. */
@@ -987,7 +987,7 @@ int parse_options(int argc, char **argv) {
           warn("The default airplay volume setting must be between -30.0 and 0.0.");
         }
       }
-
+      
 #ifdef CONFIG_AIRPLAY_2
       /* Get the 44.1k-only mode. */
       if (config_lookup_string(config.cfg, "general.airplay_2_44100_only_mode", &str)) {
@@ -1196,11 +1196,11 @@ int parse_options(int argc, char **argv) {
       if (config_lookup_float(config.cfg, "metadata.progress_interval", &dvalue)) {
         config.metadata_progress_interval = dvalue;
       }
-
+      
       if (config_lookup_float(config.cfg, "metadata.bitrate_stats_interval", &dvalue)) {
         config.bitrate_stats_interval = dvalue;
       }
-
+            
 
       if (config_lookup_non_empty_string(config.cfg, "metadata.socket_address", &str)) {
         config.metadata_sockaddr = (char *)str;
@@ -3132,7 +3132,10 @@ int main(int argc, char **argv) {
   config.output->init(argc - audio_arg, argv + audio_arg);
   if (getenv("CAPSULA_PA_SELFTEST")) {
     extern int capsula_pa_selftest(void);
-    return capsula_pa_selftest();
+    int result = capsula_pa_selftest();
+    config.output->deinit();
+    fflush(NULL);
+    _Exit(result);
   }
 
 
@@ -3537,7 +3540,7 @@ int main(int argc, char **argv) {
 #endif
 #ifdef CONFIG_MQTT
   debug(option_print_level, "mqtt is %sabled.", config.mqtt_enabled ? "en" : "dis");
-  if (config.mqtt_enabled != 0) {
+  if (config.mqtt_enabled != 0) {  
     debug(option_print_level, "mqtt hostname is %s, port is %d.", config.mqtt_hostname,
           config.mqtt_port);
     debug(option_print_level, "mqtt topic is %s.", config.mqtt_topic);
@@ -3559,7 +3562,7 @@ int main(int argc, char **argv) {
 #ifdef CONFIG_CONVOLUTION
   debug(option_print_level, "convolution_enabled is %s.",
         config.convolution_enabled != 0 ? "true" : "false");
-  if (config.convolution_enabled != 0) {
+  if (config.convolution_enabled != 0) {    
     debug(option_print_level, "convolution maximum length is %f seconds.",
           config.convolution_max_length_in_seconds);
     debug(option_print_level, "convolution gain is %f", config.convolution_gain);
@@ -3575,7 +3578,7 @@ int main(int argc, char **argv) {
 #endif
   debug(option_print_level, "loudness_enabled is %s.",
         config.loudness_enabled != 0 ? "true" : "false");
-  if (config.loudness_enabled != 0) {
+  if (config.loudness_enabled != 0) {    
     debug(option_print_level, "loudness reference level is %f", config.loudness_reference_volume_db);
   }
 

@@ -229,53 +229,84 @@ static int artwork_frame(void) {
     return 1;
 }
 
+
+/* A single streaming reader replaces a full journal snapshot twice a second.
+ * BusyBox logread -f reports only new messages, so the broker starts in
+ * ST_UNKNOWN and the idle timeout below still brings up the clock. */
+static FILE *log_pipe;
+static char log_partial[2048];
+static size_t log_partial_len;
+static char log_last_volume[600];
+static int log_state = ST_UNKNOWN;
+static double log_changed, log_grace = 1, volume_until;
+
+static void log_consume(const char *line) {
+    double now = monotonic_seconds();
+    int busy = 0, done = 0, g = 1;
+    if (strstr(line, "voice-agent:") && strstr(line, "] setVolume")) {
+        if (strcmp(line, log_last_volume)) {
+            snprintf(log_last_volume, sizeof(log_last_volume), "%s", line);
+            volume_until = now + 1.5;
+        }
+    }
+    if (strstr(line, "led animation loaded")) {
+        if (strstr(line, "ready.json")) done = 1;
+        else { busy = 1; g = 4; }
+    } else if (strstr(line, "=> PHRASE_IN_PROGRESS") ||
+               strstr(line, "=> PHRASE_RESULT_PENDING") ||
+               strstr(line, "SPEECH: start")) busy = 1;
+    else if (strstr(line, "onSpeechPlaybackFinished") ||
+             strstr(line, "SPEECH: stop") ||
+             strstr(line, "=> WAITING_FOR_KEYWORD")) done = 1;
+    if (!busy && !done) return;
+    log_state = busy ? ST_BUSY : ST_DONE;
+    log_changed = now;
+    log_grace = g;
+    syslog(LOG_INFO, "capsula-led: %s", busy ? "speech busy" : "speech done");
+}
+
+static void log_poll(void) {
+    if (!log_pipe) {
+        log_pipe = popen("logread -f", "r");
+        if (!log_pipe) return;
+        setvbuf(log_pipe, NULL, _IONBF, 0);
+        fcntl(fileno(log_pipe), F_SETFL, fcntl(fileno(log_pipe), F_GETFL) | O_NONBLOCK);
+    }
+    char chunk[4096];
+    for (;;) {
+        ssize_t n = read(fileno(log_pipe), chunk, sizeof(chunk));
+        if (n > 0) {
+            for (ssize_t i = 0; i < n; i++) {
+                char ch = chunk[i];
+                if (ch == '\n') {
+                    if (log_partial_len) log_consume(log_partial);
+                    log_partial_len = 0;
+                    log_partial[0] = 0;
+                } else if (log_partial_len + 1 < sizeof(log_partial)) {
+                    log_partial[log_partial_len++] = ch;
+                    log_partial[log_partial_len] = 0;
+                }
+            }
+            continue;
+        }
+        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) return;
+        pclose(log_pipe);
+        log_pipe = NULL;
+        return;
+    }
+}
+
 static void daemon_loop(void) {
-    char last_line[600] = "", last_volume[600] = "";
-    int last_count = 0, state = ST_UNKNOWN, first = 1, shown = -1;
-    double started = monotonic_seconds(), changed = started, next_log = 0;
-    double last_render = 0, volume_until = 0;
-    int grace = 1;
+    int shown = -1;
+    double started = monotonic_seconds();
+    double last_render = 0;
     syslog(LOG_INFO, "capsula-led: media broker started");
     for (;;) {
         double now = monotonic_seconds();
-        if (now >= next_log) {
-            char found[600] = "", volume[600] = "";
-            int count = 0, found_grace = 1;
-            FILE *f = popen("logread", "r");
-            if (f) {
-                char line[2048];
-                while (fgets(line, sizeof(line), f)) {
-                    int busy = 0, done = 0, g = 1;
-                    if (strstr(line, "voice-agent:") && strstr(line, "] setVolume"))
-                        snprintf(volume, sizeof(volume), "%s", line);
-                    if (strstr(line, "led animation loaded")) {
-                        if (strstr(line, "ready.json")) done = 1;
-                        else { busy = 1; g = 4; }
-                    } else if (strstr(line, "=> PHRASE_IN_PROGRESS") ||
-                               strstr(line, "=> PHRASE_RESULT_PENDING") ||
-                               strstr(line, "SPEECH: start")) busy = 1;
-                    else if (strstr(line, "onSpeechPlaybackFinished") ||
-                             strstr(line, "SPEECH: stop") ||
-                             strstr(line, "=> WAITING_FOR_KEYWORD")) done = 1;
-                    if (!busy && !done) continue;
-                    count++;
-                    snprintf(found, sizeof(found), "%c%s", busy ? 'B' : 'D', line);
-                    found_grace = g;
-                }
-                pclose(f);
-            }
-            if (!first && volume[0] && strcmp(volume, last_volume)) volume_until = now + 1.5;
-            snprintf(last_volume, sizeof(last_volume), "%s", volume);
-            if (!first && found[0] && (strcmp(found, last_line) || count > last_count)) {
-                state = found[0] == 'B' ? ST_BUSY : ST_DONE;
-                changed = now; grace = found_grace;
-            }
-            snprintf(last_line, sizeof(last_line), "%s", found);
-            last_count = count; first = 0; next_log = now + .5;
-        }
-        int idle = (state == ST_DONE && now-changed >= grace) ||
-                   (state == ST_BUSY && now-changed >= 40) ||
-                   (state == ST_UNKNOWN && now-started >= 15);
+        log_poll();
+        int idle = (log_state == ST_DONE && now-log_changed >= log_grace) ||
+                   (log_state == ST_BUSY && now-log_changed >= 40) ||
+                   (log_state == ST_UNKNOWN && now-started >= 15);
         if (now < volume_until) idle = 0;
         int mode = 0;
         if (idle) {

@@ -88,6 +88,16 @@ void stream_state_cb(pa_stream *s, void *mainloop);
 void stream_success_cb(pa_stream *stream, int success, void *userdata);
 void stream_write_cb(pa_stream *stream, size_t requested_bytes, void *userdata);
 
+static void capsula_pa_underflow(pa_stream *s, void *userdata) {
+  (void)userdata;
+  static unsigned long long count;
+  pthread_mutex_lock(&buffer_mutex);
+  size_t queued=audio_occupancy;
+  pthread_mutex_unlock(&buffer_mutex);
+  debug(1, "capsula PA UNDERFLOW #%llu: local_queue=%zu writable=%zu",
+        ++count, queued, pa_stream_writable_size(s));
+}
+
 int status_error_notifications = 0;
 static void check_pa_stream_status(pa_stream *p, const char *message) {
   if (status_error_notifications < 10) {
@@ -428,13 +438,17 @@ static int configure(int32_t requested_encoded_format, char **resulting_channel_
     stream = pa_stream_new(context, "Playback", &sample_specifications, &map);
     pa_stream_set_state_callback(stream, stream_state_cb, mainloop);
     pa_stream_set_write_callback(stream, stream_write_cb, mainloop);
+    pa_stream_set_underflow_callback(stream, capsula_pa_underflow, NULL);
 
     // recommended settings, i.e. server uses sensible values
     pa_buffer_attr buffer_attr;
     buffer_attr.maxlength = (uint32_t)-1;
     buffer_attr.tlength = buffer_size_in_bytes;
     buffer_attr.prebuf = (uint32_t)0;
-    buffer_attr.minreq = (uint32_t)-1;
+    // Native graph has ~77 ms hardware latency inside a 100 ms budget.
+    // Default minreq=tlength/4 (25 ms) can exceed the remaining headroom.
+    buffer_attr.minreq = sample_specifications.rate * sample_specifications.channels *
+                         format_info->bytes_per_sample / 200; // 5 ms
 
     pa_stream_flags_t stream_flags;
     stream_flags = PA_STREAM_START_CORKED | PA_STREAM_INTERPOLATE_TIMING | PA_STREAM_NOT_MONOTONIC |
@@ -636,19 +650,25 @@ static int play(void *buf, int samples, __attribute__((unused)) int sample_type,
     audio_occupancy += bytes_to_transfer;
   }
 
-  if (audio_occupancy >= capsula_start_bytes(
-        RATE_FROM_ENCODED_FORMAT(current_encoded_output_format),
-        CHANNELS_FROM_ENCODED_FORMAT(current_encoded_output_format),
-        format_info->bytes_per_sample, config.audio_backend_buffer_desired_length) &&
-      pa_stream_is_corked(stream)) {
-    debug(2, "capsula PA uncork: %zu bytes", audio_occupancy);
-    pthread_mutex_unlock(&buffer_mutex);
-    pa_threaded_mainloop_lock(mainloop);
+  int start_ready = audio_occupancy >= capsula_start_bytes(
+      RATE_FROM_ENCODED_FORMAT(current_encoded_output_format),
+      CHANNELS_FROM_ENCODED_FORMAT(current_encoded_output_format),
+      format_info->bytes_per_sample, config.audio_backend_buffer_desired_length);
+  pthread_mutex_unlock(&buffer_mutex);
+  pa_threaded_mainloop_lock(mainloop);
+  if (start_ready && pa_stream_is_corked(stream)>0) {
+    debug(2, "capsula PA uncork");
     pa_stream_cork(stream, 0, stream_success_cb, mainloop);
-    pa_threaded_mainloop_unlock(mainloop);
-  } else {
-    pthread_mutex_unlock(&buffer_mutex);
   }
+  // A write callback can drain only what was available at that instant.
+  // New PCM must satisfy an outstanding writable request immediately, rather
+  // than wait for another request after the server has already underflowed.
+  if (pa_stream_is_corked(stream)==0) {
+    size_t writable=pa_stream_writable_size(stream);
+    if (writable!=(size_t)-1 && writable>0)
+      stream_write_cb(stream,writable,NULL);
+  }
+  pa_threaded_mainloop_unlock(mainloop);
   return 0;
 }
 
@@ -970,6 +990,7 @@ static output_parameters_t *capsula_volume_parameters(void) {
   return &parameters;
 }
 
+
 static void capsula_airplay_volume(double vol) {
   int v=capsula_db_percent(vol / 100.0);
   debug(2, "capsula native volume: %.2f dB -> %d", vol / 100.0, v);
@@ -982,11 +1003,20 @@ int capsula_pa_selftest(void) {
   int32_t format=get_configuration(2,44100,SPS_FORMAT_S32_LE);
   if (format<=0 || configure(format,NULL)) return 2;
   int32_t silence[352*2]={0};
+  int tone = getenv("CAPSULA_TEST_TONE") != NULL;
+  uint64_t tone_frame=0;
+
   uint64_t begin=get_absolute_time_in_ns();
   size_t submitted=0;
   while (get_absolute_time_in_ns()-begin<3000000000ULL) {
     long delay=0; int rc=pa_delay(&delay);
     if (rc || delay<(long)(44100*config.audio_backend_buffer_desired_length)) {
+      if (tone) {
+        for (unsigned i=0; i<352; ++i) {
+          int32_t v=(int32_t)(107374182.0*sin(2.0*3.141592653589793*440.0*tone_frame++/44100.0));
+          silence[2*i]=silence[2*i+1]=v;
+        }
+      }
       play(silence,352,play_samples_are_untimed,0,0);
       submitted+=sizeof(silence);
     }

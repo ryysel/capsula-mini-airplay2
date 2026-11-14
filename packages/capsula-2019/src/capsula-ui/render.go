@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"math"
@@ -57,11 +58,18 @@ var miniPainted bool
 var miniLock sync.Mutex
 var miniQuiet time.Time
 var miniSpeaking bool
+var miniSpeechAt time.Time
+
+type miniLedRequest struct {
+	Start uint32
+	Count uint32
+	Data  *byte
+}
 
 func miniBusy() bool {
 	miniLock.Lock()
 	defer miniLock.Unlock()
-	return miniSpeaking || time.Now().Before(miniQuiet)
+	return (miniSpeaking && time.Since(miniSpeechAt) < 45*time.Second) || time.Now().Before(miniQuiet)
 }
 func paintMini(colors [12]rgb, scale float64) {
 	if miniBusy() {
@@ -82,11 +90,7 @@ func paintMini(colors [12]rgb, scale float64) {
 			data[mapping[i*3+k]] = byte(math.Min(255, math.Max(0, colors[i][k]*160*scale)))
 		}
 	}
-	req := struct {
-		Start uint32
-		Count uint32
-		Data  uintptr
-	}{0, 36, uintptr(unsafe.Pointer(&data[0]))}
+	req := miniLedRequest{0, 36, &data[0]}
 	syscall.Syscall(syscall.SYS_IOCTL, miniFile.Fd(), 0x40107a01, uintptr(unsafe.Pointer(&req)))
 	runtime.KeepAlive(data)
 	miniPainted = true
@@ -111,46 +115,49 @@ func closeMini() {
 
 // Leave native volume/numeric-display animations alone, and yield during speech.
 // Parse only state markers; never copy stock logs (which can contain tokens).
+// One bounded streaming reader replaces two repeated 4-MiB log snapshots.
+// Never print stock lines: they may contain credentials.
 func (c *companion) miniLogs(ctx context.Context) {
-	ticker := time.NewTicker(250 * time.Millisecond)
-	defer ticker.Stop()
-	var last string
-	for {
+	for ctx.Err() == nil {
+		cmd := exec.CommandContext(ctx, "logread", "-f")
+		out, err := cmd.StdoutPipe()
+		if err != nil {
+			return
+		}
+		if err = cmd.Start(); err != nil {
+			return
+		}
+		scan := bufio.NewScanner(out)
+		scan.Buffer(make([]byte, 4096), 65536)
+		for scan.Scan() {
+			line := scan.Text()
+			volume := strings.Contains(line, "OnVolumeChangedEvent:")
+			start := strings.Contains(line, "=> PHRASE_IN_PROGRESS") || strings.Contains(line, "SPEECH: start")
+			done := strings.Contains(line, "onSpeechPlaybackFinished") || strings.Contains(line, "=> WAITING_FOR_KEYWORD")
+			if !volume && !start && !done {
+				continue
+			}
+			miniLock.Lock()
+			if volume {
+				miniQuiet = time.Now().Add(1800 * time.Millisecond)
+			}
+			if start {
+				miniSpeaking = true
+				miniSpeechAt = time.Now()
+			}
+			if done {
+				miniSpeaking = false
+			}
+			miniLock.Unlock()
+		}
+		if ctx.Err() == nil && cmd.Process != nil {
+			cmd.Process.Kill()
+		}
+		cmd.Wait()
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
+		case <-time.After(time.Second):
 		}
-		c.Lock()
-		active := c.active
-		c.Unlock()
-		if !active {
-			last = ""
-			continue
-		}
-		raw, err := exec.CommandContext(ctx, "logread").Output()
-		if err != nil {
-			continue
-		}
-		newest := ""
-		busy := false
-		for _, line := range strings.Split(string(raw), "\n") {
-			if strings.Contains(line, "OnVolumeChangedEvent:") {
-				newest = line
-			}
-			if strings.Contains(line, "=> PHRASE_IN_PROGRESS") || strings.Contains(line, "SPEECH: start") {
-				busy = true
-			}
-			if strings.Contains(line, "onSpeechPlaybackFinished") || strings.Contains(line, "=> WAITING_FOR_KEYWORD") {
-				busy = false
-			}
-		}
-		miniLock.Lock()
-		miniSpeaking = busy
-		if last != "" && newest != "" && newest != last {
-			miniQuiet = time.Now().Add(1800 * time.Millisecond)
-		}
-		miniLock.Unlock()
-		last = newest
 	}
 }
