@@ -91,8 +91,7 @@ stock=$(sha256sum /rom/usr/bin/voice-agent | cut -d' ' -f1)
 [ "$stock" = e91c758edaae7ef258691438439906b4bd5986609a3be9fde946e59fc15ed9b7 ] ||
     die 'Unknown Mini voice-agent build; no patch or installation attempted'
 if [ -e /data/overlay/upper/usr/bin/voice-agent ]; then
-    patched=$(sha256sum /data/overlay/upper/usr/bin/voice-agent | cut -d' ' -f1)
-    [ "$patched" = 7282da6b2bcfe5dfe94c53753eee9a5f07e1dfb68d52e1103c41860753658ed6 ] ||
+    sh ./voice-agent-pack.sh check ||
         die 'Unknown existing voice-agent overlay; refusing to overwrite'
 fi
 
@@ -128,6 +127,7 @@ done
 rm -f /dev/shm/nqptp-*
 
 sh "$root/voice-agent-volume-patch.sh"
+sh "$root/voice-agent-fallback.sh"
 mkdir -p "$DEST/bin" "$DEST/etc" "$DEST/init.d"
 for f in shairport-sync nqptp capsula-ui capsula-airplay-keys; do
     cp "bin/$f" "$DEST/bin/$f"

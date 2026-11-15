@@ -148,6 +148,7 @@ echo "== voice-agent volume patch"
 # Applied but inert until voice-agent is restarted; the wrapper and the overlay
 # binary are picked up on the next boot, so the installation ends with one.
 sh ./voice-agent-volume-patch.sh
+sh ./voice-agent-fallback.sh
 
 sync
 

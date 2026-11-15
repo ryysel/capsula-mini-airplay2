@@ -74,4 +74,16 @@ libpulse, libuuid, libssl/libcrypto.
 
 ## Демоны оформления
 
-`capsula-ui`, `capsula-led-media`, `capsula-art`: локальные исходники в `packages/*/src/`, MIT. Go TIFF decoder: `golang.org/x/image v0.24.0`, BSD-3-Clause (лицензия в `licenses/x-image-LICENSE`). Код AP2-команд использует upstream `remote/remote.c`, лицензия upstream сохранена в исходниках. Бинарник штатного `voice-agent` не распространяется: установщик проверяет и патчит локальную копию на устройстве.
+`capsula-ui`, `capsula-led-media`, `capsula-art`: локальные исходники в `packages/*/src/`, MIT. Go TIFF decoder: `golang.org/x/image v0.24.0`, BSD-3-Clause (лицензия в `licenses/x-image-LICENSE`). Код AP2-команд использует upstream `remote/remote.c`, лицензия upstream сохранена в исходниках. Бинарник штатного `voice-agent` не распространяется: установщик проверяет, патчит и упаковывает локальную копию на устройстве.
+
+## UPX
+
+- Версия: 5.2.1 (aarch64, статическая сборка)
+- Исходник: https://github.com/upx/upx, тег `v5.2.1`
+- Архив: `upx-5.2.1-arm64_linux.tar.xz`, SHA-256
+  `a72d112c5970a904a31da0b9c84f919bc16b9a311787c12245508544a78c7d36`
+- Лицензия: GNU GPL v2 с исключением для сжатых программ, текст в
+  `licenses/UPX.txt`.
+- Зачем: установщик сжимает пропатченную копию `voice-agent` в оверлее
+  (13 МиБ → 5 МиБ). Сам `voice-agent` по-прежнему берётся из прошивки
+  колонки и не распространяется.

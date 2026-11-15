@@ -19,6 +19,7 @@
 # identified by its SHA-256 and the result is verified before it is kept.
 set -eu
 
+root=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 STOCK_SHA=566e30bd0059428d5f46d6134ab538ea862f2b993ff525e8499b1304f8434209
 PATCHED_SHA=e58d5e46c2b26e7c20ab740c11b03993472aa032d142cc25c127204728dcb9b5
 SRC=/usr/bin/voice-agent
@@ -29,7 +30,8 @@ OFF2=1545432 # 0x1794d8, "ldrb w0,[x19,#4]" -> "mov w0,#1"
 sum_of() { sha256sum "$1" | cut -d' ' -f1; }
 
 if [ -f "$DST" ]; then
-    if [ "$(sum_of "$DST")" = "$PATCHED_SHA" ]; then
+    if [ "$(sum_of "$DST")" = "$PATCHED_SHA" ] || sh "$root/voice-agent-pack.sh" check; then
+        sh "$root/voice-agent-pack.sh" pack
         echo "voice-agent: already patched"
         exit 0
     fi
@@ -63,3 +65,4 @@ fi
 
 sync
 echo "voice-agent: patched; takes effect after the next reboot"
+sh "$root/voice-agent-pack.sh" pack

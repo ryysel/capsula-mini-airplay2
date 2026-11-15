@@ -4,14 +4,22 @@ uid=$(grep '^Uid:' /proc/self/status | cut -f2)
 [ "$uid" = 0 ] || { echo 'Run as root' >&2; exit 1; }
 D=/data/local/capsula-airplay
 UPPER=/data/overlay/upper/usr/bin/voice-agent
-PATCHED=7282da6b2bcfe5dfe94c53753eee9a5f07e1dfb68d52e1103c41860753658ed6
+WRAP=/data/overlay/upper/usr/bin/voice-agent.sh
+root=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 if [ -e "$UPPER" ]; then
-  current=$(sha256sum "$UPPER" | cut -d' ' -f1)
-  [ "$current" = "$PATCHED" ] || { echo 'Unknown voice-agent overlay; refusing'; exit 1; }
-  # Restore the stock path atomically; never stop the running voice-agent.
-  cp /rom/usr/bin/voice-agent /usr/bin/voice-agent.rollback
-  chmod 755 /usr/bin/voice-agent.rollback
-  mv /usr/bin/voice-agent.rollback /usr/bin/voice-agent
+  if sh "$root/voice-agent-pack.sh" check; then
+    # Remove the overlay copy itself, not the merged path: deleting through
+    # overlayfs would white out the stock binary instead of revealing it.
+    rm -f "$UPPER"
+    echo 'voice-agent: volume patch removed'
+  else
+    echo 'Unknown voice-agent overlay; refusing' >&2
+    exit 1
+  fi
+fi
+if [ -f "$WRAP" ] && grep -q 'capsula:fallback' "$WRAP"; then
+  rm -f "$WRAP"
+  echo 'voice-agent wrapper: fallback removed'
 fi
 if [ -x "$D/S99airplay" ]; then sh "$D/S99airplay" stop || true; fi
 # Unlinking through overlayfs would white-out the lower script, NOT reveal it.

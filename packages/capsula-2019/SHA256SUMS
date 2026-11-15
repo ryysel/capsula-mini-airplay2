@@ -9,7 +9,7 @@ fefbe78974a9ca9b916c89764cbb14946572ea758e562c6f86e2034db7e83e3c  ./etc/apply-ti
 5379efafe81a30ffba44509a01c17aece030dab8001a2f4a79c7071d9b75834f  ./etc/nqptp.init
 1887e19c4114961f87780b0ccee0bf1cd768d67dceafa4e488b72f8b0368203f  ./etc/shairport-sync.conf
 baf915640cf716fcc01a6bae6816535acf94ec812ebf8eba3ef26f792874b8ce  ./etc/shairport-sync.init
-402d8cb38ae8317b230a9ebfcbdbc2832728aa399de668a00cb7bb5eee33c287  ./install.sh
+0f6c591318ed8c9a324e90216e44e66a4418cc38135656dc1c22233e1e856aaf  ./install.sh
 911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad  ./licenses/x-image-LICENSE
 9167609b70f72ca8d84ecd23019afed6ac4e4347ec1bda68110281480d1f1fa4  ./src/BUILD.md
 78d5718703f9a6efee42088afa1e2f68edc6f9ee461b77d2781cdf3f55aeda8f  ./src/capsula-ui/go.mod
@@ -29,5 +29,5 @@ a1ca43d38358c7fc76ff589f54f6ec9d8ec23be6a91255c5a385fe330ea559e3  ./src/receiver
 4ef5a492b4798a22928539207dbc11b073691c1058f08e4a54a43e7e43e6609b  ./src/receiver/capsula-media-control.c
 db9905e9bf835c89c406a4a2a94049da7ad908338fd4c4cd45fb97aefd59dc4b  ./src/receiver/rtsp.c
 c87dba3e573aa87ae4e97a856c668d96c647dcfb485815397541952172f742ea  ./src/receiver/shairport.c
-f49aa5696795e9d18c34000f3cb3b19f4024c2997267d0d1b72c65708caa98d9  ./uninstall.sh
-44a28452747e565e621ccfa619935ba79e3f0250f39bb3154d7e3cfe420853cf  ./voice-agent-volume-patch.sh
+f5aea266e73873afae6c79facef986efe4318d555a822449f8f962d13d1e7648  ./uninstall.sh
+c4ff7729a4dca8f3d3e9566f23eeb15d42196a28ecf4f757c8aa7a3f531c3565  ./voice-agent-volume-patch.sh
