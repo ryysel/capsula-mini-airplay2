@@ -9,8 +9,9 @@ stale sender, disabled VU and pause all fail back to native display.
 There is deliberately no direct-write fallback.
 
 A stock-Mini-only preload adapter serializes native display ioctl calls
-and a 25 Hz leased-frame worker. It preserves every native brightness/
-control byte, substitutes only the 30 segment-enable bytes during VU,
+and a 25 Hz leased-frame worker. Revision 2 recognises nonzero segment intensities as lit, preserves the
+native peak intensity when painting a leased pattern and leaves adjacent
+opaque bytes untouched,
 and caches the latest actual native frame for expiry/restore.
 Other requests/devices/processes pass through. No audio APIs are hooked.
 The exact firmware/packed-overlay hashes are checked by the local deployer.
@@ -36,4 +37,16 @@ a fake filesystem. These are not a substitute for the flashlight test.
 Owner explicitly authorised one controlled Mini reboot. Adapter loaded,
 ready status and zero errors verified after that reboot. Palette correction,
 saved calibration and audio configuration remain unchanged.
-Visual flashlight/pause acceptance is pending. No public release yet.
+The first live flashlight test FAILED: revision 1 assumed boolean segment
+bytes and misidentified higher clock intensities as native priority.
+The actual native 23:19 capture retained its glyphs while intensity rose
+1..19 and returned to 1; adjacent bytes stayed zero.
+
+Revision 2 replays that exact intensity ramp and tests all levels 1..255,
+native-priority, pause/crash expiry and unchanged native input buffers.
+Tests use an injected monotonic clock only in the mock, so build-host
+scheduling cannot falsely expire a simulated live sender. Production keeps
+the real 400 ms deadman timeout.
+Revision 2 is BUILT ONLY, NOT loaded on the speaker. It requires replacing
+the adapter atomically and another separately authorised Mini reboot.
+No public release yet; visual flashlight/pause acceptance remains pending.

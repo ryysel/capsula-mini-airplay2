@@ -40,7 +40,9 @@ static int cda_active(const struct cda_policy *s, uint64_t now) {
          now-s->received<CDA_LEASE_NS && now>=s->priority_until;
 }
 
-/* Exact native HH:MM, optionally a blank leading zero. Other native frames
+/* Exact native HH:MM, optionally a blank leading zero. Segment samples are
+ * native intensities, not boolean flags: compare their geometry, not level.
+ * Other native frames
  * (volume, assistant, diagnostics) have priority, not just the UI log hints.
  * Brightness bytes are deliberately not part of this classification. */
 static int cda_clock_at(const unsigned char native[60], const struct tm *tm) {
@@ -49,19 +51,26 @@ static int cda_clock_at(const unsigned char native[60], const struct tm *tm) {
     unsigned mask=0;
     for (unsigned bit=0;bit<7;bit++) {
       unsigned char on=native[cda_map[cda_starts[digit]+bit]*2];
-      if (on>1) return 0;
-      mask|=(unsigned)on<<bit;
+      if (on) mask|=1u<<bit;
     }
     if (mask!=cda_digits[values[digit]] &&
         !(digit==0 && values[0]==0 && mask==0)) return 0;
   }
-  return native[cda_map[14]*2]<=1 && native[cda_map[15]*2]<=1;
+  return 1; /* Colon intensity/blinking must not change frame ownership. */
+}
+
+static unsigned char cda_peak(const struct cda_policy *s) {
+  unsigned char peak=0;
+  for (unsigned i=0;i<30;i++) if (s->native[i*2]>peak) peak=s->native[i*2];
+  return peak;
 }
 
 static void cda_output(struct cda_policy *s, unsigned char out[60], uint64_t now) {
   memcpy(out,s->native,60);
   int active=cda_active(s,now);
-  if (active) for (unsigned i=0;i<30;i++) out[i*2]=s->frame[i];
+  unsigned char brightness=cda_peak(s);
+  if (active) for (unsigned i=0;i<30;i++)
+    out[i*2]=s->frame[i] ? brightness : 0;
   s->painted=active;
 }
 #endif

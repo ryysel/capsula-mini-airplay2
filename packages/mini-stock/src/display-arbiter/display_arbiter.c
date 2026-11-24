@@ -31,7 +31,7 @@ static pthread_once_t once=PTHREAD_ONCE_INIT;
 static struct cda_policy state;
 static int enabled, device_fd=-1, socket_fd=-1, thread_started, stopping;
 static pthread_t thread;
-static unsigned long replacements,native_priority,writes,errors;
+static unsigned long replacements,native_priority,writes,errors,clock_redraws;
 
 #ifdef CDA_TEST
 extern int cda_mock_ioctl(int,unsigned long,void*);
@@ -42,9 +42,14 @@ static int raw_ioctl(int fd,unsigned long req,void *arg) {
 }
 #endif
 static uint64_t mono(void) {
+#ifdef CDA_TEST
+  extern uint64_t cda_mock_mono(void);
+  return cda_mock_mono();
+#else
   struct timespec t;
   clock_gettime(CLOCK_MONOTONIC,&t);
   return (uint64_t)t.tv_sec*1000000000ULL+(uint64_t)t.tv_nsec;
+#endif
 }
 static void init_enabled(void) {
   const char *value=getenv("CAPSULA_DISPLAY_ARBITER");
@@ -85,14 +90,14 @@ static int send_frame(const unsigned char frame[60]) {
   return result;
 }
 static void status_write(uint64_t now) {
-  char text[256],stage[256];
+  char text[512],stage[256];
   snprintf(stage,sizeof(stage),"%s.new",CDA_STATUS);
   int fd=open(stage,O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC|O_NOFOLLOW,0600);
   if (fd<0) return;
   int n=snprintf(text,sizeof(text),
-    "CDV1 ready=1 active=%d overrides=%lu native_priority=%lu writes=%lu errors=%lu\n",
-    cda_active(&state,now),replacements,native_priority,writes,errors);
-  if (write(fd,text,(size_t)n)==n && rename(stage,CDA_STATUS)==0) {
+    "CDV1 ready=1 active=%d native_peak=%u clock_redraws=%lu overrides=%lu native_priority=%lu writes=%lu errors=%lu\n",
+    cda_active(&state,now),cda_peak(&state),clock_redraws,replacements,native_priority,writes,errors);
+  if (n>0 && (size_t)n<sizeof(text) && write(fd,text,(size_t)n)==n && rename(stage,CDA_STATUS)==0) {
 #ifndef CDA_TEST
     /* A verified native frame reached the real driver and the worker is up.
      * A failed early launch leaves this guard, bypassing preload next boot. */
@@ -176,6 +181,7 @@ int ioctl(int fd,unsigned long request,...) {
   pthread_mutex_lock(&lock);
   uint64_t now=mono();
   int clock=native_clock(saved);
+  if (clock) clock_redraws++;
   if (!clock) {state.priority_until=now+CDA_PRIORITY_NS;native_priority++;}
   memcpy(state.native,saved,60);
   state.have_native=1;
