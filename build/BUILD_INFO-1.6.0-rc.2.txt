@@ -1,0 +1,8 @@
+Stock Mini display VU
+Exact binary accepted and installed on owner's stock Mini:
+SHA256 af308e96f891f41ae79419f9cceca84f0dacd8d959cec15a2307e3ca8892c0c7
+Go 1.26, CGO_ENABLED=0 GOOS=linux GOARCH=arm64,
+go build -buildvcs=false -trimpath -ldflags="-s -w".
+Unpacked static Go executable. No receiver or Big UI rebuild for rc.2.
+Go race tests and vet passed. Cold boot not tested.
+Previous component provenance: BUILD_INFO-1.6.0-rc.1.txt.

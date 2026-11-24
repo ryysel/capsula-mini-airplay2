@@ -7,6 +7,7 @@ root=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 cd "$root"
 
 timing_mode=fast_audio
+display_mode=preserve
 upgrade=no
 check=no
 name_mode=preserve
@@ -15,6 +16,8 @@ while [ "$#" -gt 0 ]; do
     case "$1" in
         --timing) shift; [ "$#" -gt 0 ] || exit 2; timing_mode=$1 ;;
         --upgrade) upgrade=yes ;;
+        --display-vu) display_mode=vu ;;
+        --clock) display_mode=clock ;;
         --check) check=yes ;;
         --name) shift; [ "$#" -gt 0 ] || exit 2; name=$1; name_mode=custom ;;
         --*) echo "Unknown option: $1" >&2; exit 2 ;;
@@ -82,6 +85,7 @@ for pair in \
     fi
 done
 [ ! -L "$CONF" ] || die "Refusing symlink: $CONF"
+[ ! -L "$DEST/etc/mini-display-vu.enabled" ] || die 'Refusing symlink: display VU setting'
 
 free=$(df -Pk /data | tail -1 | tr -s ' ' | cut -d' ' -f4)
 required=18000
@@ -145,6 +149,15 @@ if [ ! -e "$CONF" ]; then
 fi
 chmod 0644 "$CONF"
 
+# BEGIN DISPLAY MODE MIGRATION (also executed by regression tests)
+case "$display_mode" in
+    vu) touch "$DEST/etc/mini-display-vu.enabled" ;;
+    clock) rm -f "$DEST/etc/mini-display-vu.enabled" /tmp/capsula-mini-display-vu ;;
+    preserve) : ;;
+    *) die 'Invalid display mode' ;;
+esac
+# END DISPLAY MODE MIGRATION
+
 if [ "$name_mode" = custom ]; then
     : > "$CONF.new"
     while IFS= read -r line || [ -n "$line" ]; do
@@ -201,4 +214,9 @@ pidof nqptp >/dev/null || die "nqptp failed to start. Backup: $backup"
 avahi-daemon -c >/dev/null 2>&1 || die "avahi-daemon is not running. Backup: $backup"
 pidof capsula-ui >/dev/null || die 'capsula-ui failed'
 echo "INSTALL_PASS stock-mini backup=$backup"
+if [ -f "$DEST/etc/mini-display-vu.enabled" ]; then
+    echo 'Display: music VU enabled; clock returns on pause.'
+else
+    echo 'Display: stock clock (use --display-vu to enable music animation).'
+fi
 echo 'Native volume patch requires one manual reboot on first install. Never stop voice-agent.'

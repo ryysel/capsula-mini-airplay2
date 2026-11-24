@@ -10,6 +10,11 @@ running() {
 start_one() {
   running "$1" && return
   if [ "$1" = capsula-ui ]; then
+    if [ -f "$D/etc/mini-display-vu.enabled" ]; then
+      touch /tmp/capsula-mini-display-vu
+    else
+      rm -f /tmp/capsula-mini-display-vu
+    fi
     nohup "$D/bin/$1" >>/tmp/capsula-ui.log 2>&1 </dev/null &
     echo $! >"/var/run/$1.pid"
   else

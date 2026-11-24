@@ -65,3 +65,15 @@ OTA и аккаунт установщик не меняет.
 Приёмник: build/build-2019.sh с CAPSULA_STOCK_MODEL=mini-stock.
 Нужны пакеты с исходниками в /work/packages; builder применяет полный
 source overlay последним, поверх исторических inline-патчей.
+
+
+## Music VU display (v1.6.0-rc.2, experimental)
+
+From `packages/mini-stock`: `sh install.sh --upgrade --display-vu`.
+Four seven-segment columns follow real PCM levels; this is not an FFT.
+Clock returns on pause. Ordinary upgrades preserve the choice; fresh
+installs keep stock clock by default. `--clock` disables during upgrade.
+To disable immediately without stopping music, remove both
+`/data/local/capsula-airplay/etc/mini-display-vu.enabled` and
+`/tmp/capsula-mini-display-vu`.
+See [RC validation limits](RELEASE_1_6_0_RC2.md).
