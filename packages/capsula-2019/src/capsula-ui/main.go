@@ -67,13 +67,12 @@ func control(cmd string) string {
 	return string(b[:n])
 }
 
-// Artwork colours are chosen by chroma, never by area alone: a pale sky or a
-// black logo must not outvote the actual palette of the cover. Thresholds
-// mirror the Alice receiver (neutral below 15% saturation, dark below 6%).
+// Artwork retains neutral/shadow area and source brightness; chroma has only
+// a bounded preference, so a small dark-red subject cannot paint a grey cover red.
 const (
 	coverMinSaturation  = .15
 	coverSaturationGain = 1.3
-	coverMinPeak        = .55
+	coverMinPeak        = 0.0
 	coverMaxPeak        = .95
 )
 
@@ -94,108 +93,11 @@ func palette(data []byte) ([]rgb, error) {
 	if err != nil {
 		return nil, err
 	}
-	type bin struct {
-		sum    rgb
-		weight float64
-	}
-	bins := map[int]*bin{}
-	var mean rgb
-	var samples, chroma int
-	dx, dy := max(1, cfg.Width/64), max(1, cfg.Height/64)
-	for y := 0; y < cfg.Height; y += dy {
-		for x := 0; x < cfg.Width; x += dx {
-			r, g, b, _ := img.At(img.Bounds().Min.X+x, img.Bounds().Min.Y+y).RGBA()
-			c := rgb{float64(r) / 65535, float64(g) / 65535, float64(b) / 65535}
-			hi := max(c[0], max(c[1], c[2]))
-			if hi < .06 {
-				continue // shadows and letterbox bars carry no hue
-			}
-			samples++
-			for k := 0; k < 3; k++ {
-				mean[k] += c[k]
-			}
-			s := (hi - min(c[0], min(c[1], c[2]))) / hi
-			if s < coverMinSaturation {
-				continue
-			}
-			chroma++
-			key := (int(c[0]*7) << 6) | (int(c[1]*7) << 3) | int(c[2]*7)
-			if bins[key] == nil {
-				bins[key] = &bin{}
-			}
-			w := s * s * hi
-			v := bins[key]
-			v.weight += w
-			for k := 0; k < 3; k++ {
-				v.sum[k] += c[k] * w
-			}
-		}
-	}
-	if samples == 0 {
-		return []rgb{{.03, .03, .03}}, nil
-	}
-	// A monochrome cover has no hue to paint; show its mean as dim grey so the
-	// ring still follows the cover's light level without pretending it is white.
-	if len(bins) == 0 || float64(chroma)/float64(samples) < .03 {
-		v := (mean[0] + mean[1] + mean[2]) / float64(3*samples)
-		v = min(.30, max(.04, v*.6))
-		return []rgb{{v, v, v}}, nil
-	}
-	// Retain every quantized cluster's area before representatives are popped
-	// from the map. Iterate in key order for reproducible mass accumulation.
-	var clusters []clusterMass
-	for key := 0; key < 512; key++ {
-		if v := bins[key]; v != nil && v.weight > 0 {
-			c := v.sum
-			for k := range c {
-				c[k] /= v.weight
-			}
-			clusters = append(clusters, clusterMass{coverColour(c), v.weight})
-		}
-	}
-	var out []rgb
-	for len(out) < 3 {
-		best, top := -1, -1.0
-		for key, v := range bins {
-			if v.weight > top || (v.weight == top && key < best) {
-				best, top = key, v.weight
-			}
-		}
-		if best < 0 {
-			break
-		}
-		v := bins[best]
-		c := v.sum
-		for k := 0; k < 3; k++ {
-			c[k] /= v.weight
-		}
-		delete(bins, best)
-		// Compare what is actually painted: two different mid-tones can boost
-		// and normalise into the same colour, and a repeated band wastes a slot.
-		c = coverColour(c)
-		distinct := true
-		for _, a := range out {
-			d := 0.0
-			for k := 0; k < 3; k++ {
-				d += (a[k] - c[k]) * (a[k] - c[k])
-			}
-			if d < .10 {
-				distinct = false
-			}
-		}
-		if !distinct {
-			continue
-		}
-		out = append(out, c)
-	}
-	if len(out) == 0 {
-		return nil, fmt.Errorf("artwork has no colour")
-	}
-	return weightedPaletteStops(out, clusters), nil
+	return coverImagePalette(img, cfg.Width, cfg.Height), nil
 }
 
 // coverColour raises saturation with the HSV value fixed, then lifts only what
-// is too dark to read on the ring. A bright cover keeps its own light level, so
+// is above the output cap. Dark covers retain their own light level, so
 // the palette stays faithful instead of turning every colour equally neon.
 func coverColour(c rgb) rgb {
 	hi := max(c[0], max(c[1], c[2]))
