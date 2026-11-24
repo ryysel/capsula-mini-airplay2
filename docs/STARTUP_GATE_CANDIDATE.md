@@ -1,6 +1,8 @@
 # Experimental 2019 fast-audio startup gate
 
-This source-only candidate is not a released package. It re-selects the
+This experimental receiver is included only in the v1.6.0-rc.1 prerelease.
+Startup drop-late/underflow events remain on repeated connections: this is
+not a qualified stable fix. It re-selects the
 initial queued packet after the PA/FFmpeg output preparation, before sending
 silence or real audio. The original stale-packet selection then uses a lead
 bounded by the player's budget and the existing PA 100 ms target buffer.

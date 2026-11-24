@@ -141,6 +141,18 @@ func palette(data []byte) ([]rgb, error) {
 		v = min(.30, max(.04, v*.6))
 		return []rgb{{v, v, v}}, nil
 	}
+	// Retain every quantized cluster's area before representatives are popped
+	// from the map. Iterate in key order for reproducible mass accumulation.
+	var clusters []clusterMass
+	for key := 0; key < 512; key++ {
+		if v := bins[key]; v != nil && v.weight > 0 {
+			c := v.sum
+			for k := range c {
+				c[k] /= v.weight
+			}
+			clusters = append(clusters, clusterMass{coverColour(c), v.weight})
+		}
+	}
 	var out []rgb
 	for len(out) < 3 {
 		best, top := -1, -1.0
@@ -179,7 +191,7 @@ func palette(data []byte) ([]rgb, error) {
 	if len(out) == 0 {
 		return nil, fmt.Errorf("artwork has no colour")
 	}
-	return out, nil
+	return weightedPaletteStops(out, clusters), nil
 }
 
 // coverColour raises saturation with the HSV value fixed, then lifts only what
@@ -294,7 +306,7 @@ func (c *companion) covers(ctx context.Context) {
 			c.Lock()
 			c.cover, c.palette = newest, p
 			c.Unlock()
-			log.Printf("artwork: %d colours (%s)", len(p), filepath.Base(newest))
+			log.Printf("artwork: %d weighted stops (%s)", len(p), filepath.Base(newest))
 		}
 	}
 }

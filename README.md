@@ -1,4 +1,12 @@
 <!-- Stock fixes candidate; owner AirPlay validation pending. -->
+
+> **Тестовая поставка v1.6.0-rc.1.**
+> Цвета обложки распределяются пропорционально на обеих стоковых Капсулах.
+> На большой включён эксперимент стартовой синхронизации: ошибки при
+> повторном подключении ещё возможны. Это не стабильный фикс.
+> [Описание RC](docs/RELEASE_1_6_0_RC1.md) ·
+> [Стабильная v1.5.5](https://github.com/ryysel/capsula-mini-airplay2/releases/tag/v1.5.5).
+
 See [stock fixes and exact validation limits](docs/STOCK_FIXES_20261114.md) for the superseding native-volume/renderer changes.
 
 # AirPlay 2 для VK Капсулы и Капсулы Мини
@@ -34,10 +42,11 @@ See [stock fixes and exact validation limits](docs/STOCK_FIXES_20261114.md) for 
 
 ## Скачать
 
-Готовые архивы: **[последний релиз](https://github.com/ryysel/capsula-mini-airplay2/releases/latest)**.
+Готовые архивы RC: **[v1.6.0-rc.1](https://github.com/ryysel/capsula-mini-airplay2/releases/tag/v1.6.0-rc.1)**.
+Ссылка «Latest» на GitHub продолжает вести на стабильную v1.5.5.
 
-- `capsula-airplay-v1.5.5.tar.gz` — все три пакета, исходники и установщики.
-- `capsula-airplay-mini-windows-v1.5.5.zip` — мастер установки **для Мини на Alpine** с Windows.
+- `capsula-airplay-v1.6.0-rc.1.tar.gz` — все три пакета, исходники и установщики.
+- `capsula-airplay-mini-windows-v1.6.0-rc.1.zip` — мастер установки **для Мини на Alpine** с Windows.
 - `SHA256SUMS` рядом с архивами — контрольные суммы загрузок.
 
 Пакет занимает на колонке **около 5,4 МиБ** (было 14,5 МиБ на Мини и 27,9 МиБ

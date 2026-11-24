@@ -1,0 +1,15 @@
+Capsula AirPlay 1.6.0-rc.1
+
+Exact UI previously tested on both stock devices:
+SHA256 5657cfa77abc7aae04b8a7441fb8267018aa8b6cafc789c7c7c83870c7c89efa
+Build: Go 1.26, CGO_ENABLED=0 GOOS=linux GOARCH=arm64, trimpath,
+ldflags "-s -w"; UPX 4.2.2 --best --lzma, upx -t passed.
+
+Exact receiver previously tested only on Capsula 2019:
+SHA256 f3c8839aa9734a6e7eddad28af97f911f3366a40cf5713fe2573b5841ab0f6a5
+Build: Shairport Sync 5.6.2, aarch64 gcc-10/glibc-2.31 cross,
+PulseAudio/Avahi/OpenSSL/AirPlay2/soxr/metadata, no D-Bus.
+Maximum required GLIBC version 2.29; target stock glibc 2.33.
+
+Stock Mini receiver and legacy Alpine payload unchanged from stable v1.5.5.
+This records build provenance, not successful long-duration/boot acceptance.
