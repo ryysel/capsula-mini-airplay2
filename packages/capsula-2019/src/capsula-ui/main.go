@@ -492,6 +492,7 @@ func main() {
 	}
 	defer os.Remove(framePath)
 	defer closeMini()
+	defer func() { displayVU.release(!miniBusy()) }()
 	defer panelFlush()
 	tick := time.NewTicker(40 * time.Millisecond)
 	defer tick.Stop()
@@ -540,6 +541,7 @@ func main() {
 			p := append([]rgb(nil), c.palette...)
 			c.Unlock()
 			panelSetStatus(active, p)
+			displayVU.tick(now, active && cfg.Mode != "test")
 
 			// Manual test ignores session state and beat so the edited colours are
 			// exactly what the ring shows; saved channel gain still applies.
