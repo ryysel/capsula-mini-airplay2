@@ -14,6 +14,10 @@ ab3017538765cdf0b050cef32b690f972e31c85a8480ad2c21caebf964dc4b5a  ./install.sh
 f6b1ce86a134e34b3d45dda1e09b4b723f4673f752013d27a5680fb5532cbed3  ./src/BUILD.md
 fc3fc91ae1fb7d4bbf0512fc1b626d18148cfd741817db8d79e46f66eedf7d69  ./src/capsula-airplay-keys.c
 f4ce806be611e4cf9614ef04effff2245bacc5eb76f4172f50635df25b92cab9  ./src/capsula-airplay-ring.c
+f4ecac61d9b2440f0e601d559bbf0f3ab5885c2c4b090502cf0258516e7a6879  ./src/display-arbiter/display_arbiter.c
+b577c9b3338656860fe34f41143c6fbc121c2918f5ac8c057b7af4d8751e51b1  ./src/display-arbiter/display_arbiter_policy.h
+c8168487636b7c6c35618677e460450f7346db21a1051153dcb85c39d576a084  ./src/display-arbiter/launcher-block.sh
+264f3daeef0dab73f100c82098e117b1d801942590d009d064f95e0ad510fe0b  ./src/display-arbiter/test_display_arbiter.c
 0a83500390e6e2eaaa9080400640f354594f70b4c901e15fc30fcac827877dd6  ./src/receiver/README.md
 a1ca43d38358c7fc76ff589f54f6ec9d8ec23be6a91255c5a385fe330ea559e3  ./src/receiver/audio_pa.c
 80ac5df5d4804eee84adb65b75118e61912b87a1fa44f83246ea65643e9debdb  ./src/receiver/capsula-audio-helpers.h

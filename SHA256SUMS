@@ -18,6 +18,7 @@ b2f4968a8fd0e94b12ba568e6ef38d274596288e0041ef777999db5c0dd99f96  ./build/BUILD_
 4ef5a492b4798a22928539207dbc11b073691c1058f08e4a54a43e7e43e6609b  ./build/capsula-media-control.c
 2681f08d16962040bf04dfc7797fe01ab28c4ac01a1759460663c51806752312  ./build/model-icon.patch
 c66e079c8c36b250176052f75583ee151f9377de3d438caf2206adafda702ddd  ./docs/FEATURES.md
+85ccef85a48c21ae8e198f338da649e7c6d5a0f364e48b09f9547385819dfe31  ./docs/MINI_DISPLAY_ARBITER.md
 8249124b10b3f7bbfcdad8e5adf1854bf1abfe485d72d86887be7141855318e7  ./docs/MINI_DISPLAY_VU.md
 b0b522d46612094be58bf4aef04ec41077f398a92671904c23f91bbc3ddcbd71  ./docs/MINI_STOCK.md
 6de7acd09e149ca00dc31163c9bbe85746c175cd62f115c27b5985cb96fbaa19  ./docs/NEUTRAL_DARK_PALETTE.md
@@ -40,7 +41,7 @@ fbc7b6b2b50713d0e5b1bca5fa5baf034b2c0008e13f0e98d395b433cab1c6a4  ./docs/WINDOWS
 869913ac289132c9d47017afef9470e2c713223f7e6574d9632bcab7a4f59b0d  ./install.sh
 eba86eeb7b86dc54c988425d29a0fd5091fd5352bb9b9079446aa5d403eaa2df  ./licenses/UPX.txt
 911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad  ./licenses/x-image-LICENSE
-7c3bd10fa3d8571de1c03e9ba545bab4e1260ea0ee0040c69263d92f1c579543  ./packages/capsula-2019/SHA256SUMS
+6ba04b6065e67e3a3c142247a7da308fea77014d58cfdee8f964162d130d1ef5  ./packages/capsula-2019/SHA256SUMS
 e1dd9b165138d8ae59f050c6b6abe98e075107b39dc7929021e29b06f1996df8  ./packages/capsula-2019/bin/capsula-led-media
 5657cfa77abc7aae04b8a7441fb8267018aa8b6cafc789c7c7c83870c7c89efa  ./packages/capsula-2019/bin/capsula-ui
 8a9ac4999efe61ca7d84556fefeeb3e8facf005e48321aee6be3c6654b5ff3b0  ./packages/capsula-2019/bin/nqptp
@@ -60,8 +61,8 @@ baf915640cf716fcc01a6bae6816535acf94ec812ebf8eba3ef26f792874b8ce  ./packages/cap
 9660f68eb9368bcddf674978ccf43894d06f84f7d86940bc411843ed06433a14  ./packages/capsula-2019/src/capsula-ui/go.sum
 f6d7265c4772e9323e5395b5b659597080999627e120a5cc78a76a80e7edaddf  ./packages/capsula-2019/src/capsula-ui/main.go
 5418366aaab893b40234bba266ec9cb4f1d6c5045a24e731e20433d0776a5be9  ./packages/capsula-2019/src/capsula-ui/main_test.go
-aeef6c58165a85dc26c05b4ad7d813b15fce1d7dc2cadccf8cccfb5b441dbaa0  ./packages/capsula-2019/src/capsula-ui/mini_display.go
-84859a4e140431a9f1b67a045ea73417c9b6181f09f7606c1d883200c7aa4aac  ./packages/capsula-2019/src/capsula-ui/mini_display_test.go
+2ec2520952d56b9708c201a1fedb04dad134cd03c43f2ef17c04c42477707b70  ./packages/capsula-2019/src/capsula-ui/mini_display.go
+b28c04393cefe27fa556fae8ba26aa8454774b9c3e82b1f8dabcd86df9e1142c  ./packages/capsula-2019/src/capsula-ui/mini_display_test.go
 afe42977348a06b7f65580babe918df4dd0a69cbc332ff13c4bc4a6234452378  ./packages/capsula-2019/src/capsula-ui/neutral_palette.go
 03e90797b4eb605a2601b2b3b87540270afa0c6222dfa7f4f12f1d8ed78622f5  ./packages/capsula-2019/src/capsula-ui/neutral_palette_test.go
 ab5c74f4b7825d79afc58437c845a4143f687b4bdc08ddf7577a831e8dfa26ef  ./packages/capsula-2019/src/capsula-ui/palette_weights.go
@@ -110,7 +111,7 @@ b96cfa896b993ec6312f7ae6485094abcc38ce5e2003aebe22e533ecd18137b2  ./packages/min
 bcf53437e53721b69267d3226b5ac37a9dfe5c97eef749cef279a739a764abed  ./packages/mini-a113x/src/capsula-art/main.go
 617674660a0fb5fffb8c4ce7bf6e24ae9297e79b7ac2a654005b83bba10774f7  ./packages/mini-a113x/src/capsula-art/main_test.go
 687d59f39a98a2a71767726539719c6af369637185189fafe452100b3ce8be4d  ./packages/mini-a113x/uninstall.sh
-f8a82be889ea9b1a7e6af740f8c748cd63ec62f3cd5e843584932c91e9fe8344  ./packages/mini-stock/SHA256SUMS
+9c96f2c02eea811f53ab7e8707fc70b5c2b0a5f8fa4b52ed8d5d18817e623f62  ./packages/mini-stock/SHA256SUMS
 293873708141b748118a5133b4ecd64e5c5d6ccaf39e48844252ddcd08c9db3b  ./packages/mini-stock/bin/capsula-airplay-keys
 af308e96f891f41ae79419f9cceca84f0dacd8d959cec15a2307e3ca8892c0c7  ./packages/mini-stock/bin/capsula-ui
 7581f2a9879fcd79db160f57889e80c912cad564edcf446bb3d0d06394c57e67  ./packages/mini-stock/bin/libuuid.so.1.3.0
@@ -127,6 +128,10 @@ ab3017538765cdf0b050cef32b690f972e31c85a8480ad2c21caebf964dc4b5a  ./packages/min
 f6b1ce86a134e34b3d45dda1e09b4b723f4673f752013d27a5680fb5532cbed3  ./packages/mini-stock/src/BUILD.md
 fc3fc91ae1fb7d4bbf0512fc1b626d18148cfd741817db8d79e46f66eedf7d69  ./packages/mini-stock/src/capsula-airplay-keys.c
 f4ce806be611e4cf9614ef04effff2245bacc5eb76f4172f50635df25b92cab9  ./packages/mini-stock/src/capsula-airplay-ring.c
+f4ecac61d9b2440f0e601d559bbf0f3ab5885c2c4b090502cf0258516e7a6879  ./packages/mini-stock/src/display-arbiter/display_arbiter.c
+b577c9b3338656860fe34f41143c6fbc121c2918f5ac8c057b7af4d8751e51b1  ./packages/mini-stock/src/display-arbiter/display_arbiter_policy.h
+c8168487636b7c6c35618677e460450f7346db21a1051153dcb85c39d576a084  ./packages/mini-stock/src/display-arbiter/launcher-block.sh
+264f3daeef0dab73f100c82098e117b1d801942590d009d064f95e0ad510fe0b  ./packages/mini-stock/src/display-arbiter/test_display_arbiter.c
 0a83500390e6e2eaaa9080400640f354594f70b4c901e15fc30fcac827877dd6  ./packages/mini-stock/src/receiver/README.md
 a1ca43d38358c7fc76ff589f54f6ec9d8ec23be6a91255c5a385fe330ea559e3  ./packages/mini-stock/src/receiver/audio_pa.c
 80ac5df5d4804eee84adb65b75118e61912b87a1fa44f83246ea65643e9debdb  ./packages/mini-stock/src/receiver/capsula-audio-helpers.h

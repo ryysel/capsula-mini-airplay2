@@ -104,3 +104,24 @@ func TestMiniVUHysteresis(t *testing.T) {
 		t.Fatal("invalid or silent level not cleared")
 	}
 }
+
+func TestMiniArbiterPacket(t *testing.T) {
+	frame := miniSegmentFrame([4]byte{8, 28, 92, 127}, [2]byte{})
+	p, err := miniArbiterPacket(frame, true)
+	if err != nil || string(p[:4]) != "CDV1" || p[4] != 1 {
+		t.Fatal("bad arbiter packet")
+	}
+	for i, on := range frame {
+		if p[8+i] != on {
+			t.Fatal("segment order changed")
+		}
+	}
+	p, err = miniArbiterPacket([30]byte{}, false)
+	if err != nil || p[4] != 0 {
+		t.Fatal("native release lost")
+	}
+	frame[0] = 2
+	if _, err = miniArbiterPacket(frame, true); err == nil {
+		t.Fatal("invalid segment accepted")
+	}
+}
