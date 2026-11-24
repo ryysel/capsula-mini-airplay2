@@ -56,13 +56,51 @@ func TestMiniVUHistory(t *testing.T) {
 	if got := h.frame(now, 0); got != [30]byte{} {
 		t.Fatal("silent frame")
 	}
-	h.frame(now.Add(80*time.Millisecond), 1)
-	got := h.frame(now.Add(160*time.Millisecond), 0)
-	want := miniSegmentFrame([4]byte{0, 0x7f, 0, 0}, [2]byte{})
-	if got != want {
-		t.Fatal("columns are not delayed real levels")
+	h.frame(now.Add(40*time.Millisecond), 1)
+	if level := h.delayedLevel(now.Add(40*time.Millisecond), now.Add(20*time.Millisecond)); math.Abs(level-.5) > 1e-9 {
+		t.Fatal("history does not interpolate real samples", level)
 	}
 	if got := h.frame(now.Add(2*time.Second), 0); got != [30]byte{} {
 		t.Fatal("stale level lit display")
+	}
+}
+
+func TestMiniVUSmoothWave(t *testing.T) {
+	now := time.Unix(100, 0)
+	var h miniVUHistory
+	h.frame(now, 0)
+	h.frame(now.Add(40*time.Millisecond), 1)
+	peak := h.columns[0]
+	if peak <= .4 || peak >= 1 || h.columns[1] != 0 {
+		t.Fatal("attack or real travelling delay", h.columns)
+	}
+	h.frame(now.Add(80*time.Millisecond), 0)
+	if h.columns[0] <= peak*.8 || h.columns[0] >= peak {
+		t.Fatal("falling tail is not smooth", h.columns[0])
+	}
+	h.frame(now.Add(120*time.Millisecond), 0)
+	if h.columns[1] <= 0 || h.columns[2] != 0 {
+		t.Fatal("pulse did not travel through real history", h.columns)
+	}
+	for i := 4; i < 90; i++ {
+		frame := h.frame(now.Add(time.Duration(i)*40*time.Millisecond), 0)
+		if i == 89 && frame != [30]byte{} {
+			t.Fatal("tail did not settle to silence")
+		}
+	}
+}
+
+func TestMiniVUHysteresis(t *testing.T) {
+	if got := miniVUBand(2, .405); got != 2 {
+		t.Fatal("threshold chatter on rise", got)
+	}
+	if got := miniVUBand(3, .395); got != 3 {
+		t.Fatal("threshold chatter on fall", got)
+	}
+	if miniVUBand(2, .45) != 3 || miniVUBand(3, .35) != 2 {
+		t.Fatal("real transition suppressed")
+	}
+	if miniVUBand(5, math.NaN()) != 0 || miniVUBand(5, 0) != 0 {
+		t.Fatal("invalid or silent level not cleared")
 	}
 }

@@ -17,8 +17,8 @@ baf915640cf716fcc01a6bae6816535acf94ec812ebf8eba3ef26f792874b8ce  ./etc/shairpor
 9660f68eb9368bcddf674978ccf43894d06f84f7d86940bc411843ed06433a14  ./src/capsula-ui/go.sum
 681f767f96a1ca2a921ca8b4ec013383216defe8a0c010455f2cca9552dd72fb  ./src/capsula-ui/main.go
 5418366aaab893b40234bba266ec9cb4f1d6c5045a24e731e20433d0776a5be9  ./src/capsula-ui/main_test.go
-0eab4cd3cc46bf0011454ea784d263aa801cb3cab8f75c2dea0d392d3a886697  ./src/capsula-ui/mini_display.go
-7201306361b500387ac0a1d02e747b18a15c7de26a8bc6f17f7cad5f7098e4ad  ./src/capsula-ui/mini_display_test.go
+aeef6c58165a85dc26c05b4ad7d813b15fce1d7dc2cadccf8cccfb5b441dbaa0  ./src/capsula-ui/mini_display.go
+84859a4e140431a9f1b67a045ea73417c9b6181f09f7606c1d883200c7aa4aac  ./src/capsula-ui/mini_display_test.go
 ab5c74f4b7825d79afc58437c845a4143f687b4bdc08ddf7577a831e8dfa26ef  ./src/capsula-ui/palette_weights.go
 d92c9d3356f9ab93430eb9cad6d66e86ec323eafec1b34cf6bba8bfb936b6690  ./src/capsula-ui/palette_weights_test.go
 3df2d428f811b1f01ee453acecc0bc8479fbaab0d5676c5d903649a1841db4d4  ./src/capsula-ui/panel.go

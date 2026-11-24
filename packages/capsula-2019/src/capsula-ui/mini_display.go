@@ -68,25 +68,81 @@ type miniLevelSample struct {
 	level float64
 }
 type miniVUHistory struct {
-	samples [12]miniLevelSample
+	samples [64]miniLevelSample
 	next    int
+	lastAt  time.Time
+	columns [4]float64
+	bands   [4]int
+}
+
+func (h *miniVUHistory) delayedLevel(now, target time.Time) float64 {
+	var before, after miniLevelSample
+	for _, sample := range h.samples {
+		if sample.at.IsZero() || now.Sub(sample.at) > 500*time.Millisecond || sample.at.After(now) {
+			continue
+		}
+		if !sample.at.After(target) && sample.at.After(before.at) {
+			before = sample
+		}
+		if !sample.at.Before(target) && (after.at.IsZero() || sample.at.Before(after.at)) {
+			after = sample
+		}
+	}
+	if before.at.IsZero() {
+		return 0
+	}
+	if after.at.IsZero() || !after.at.After(before.at) {
+		return before.level
+	}
+	t := float64(target.Sub(before.at)) / float64(after.at.Sub(before.at))
+	return before.level + t*(after.level-before.level)
+}
+
+var miniVUMasks = [6]byte{0, 0x08, 0x1c, 0x5c, 0x7c, 0x7f}
+var miniVUThresholds = [5]float64{.035, .2, .4, .6, .8}
+
+// Hysteresis avoids rapid on/off flicker when music sits near a segment step.
+func miniVUBand(previous int, level float64) int {
+	if math.IsNaN(level) || math.IsInf(level, 0) {
+		return 0
+	}
+	if previous < 0 || previous >= len(miniVUMasks) {
+		previous = 0
+	}
+	for previous < 5 && level >= miniVUThresholds[previous]+.025 {
+		previous++
+	}
+	for previous > 0 && level < miniVUThresholds[previous-1]-.025 {
+		previous--
+	}
+	return previous
 }
 
 func (h *miniVUHistory) frame(now time.Time, level float64) [30]byte {
+	if math.IsNaN(level) || math.IsInf(level, 0) {
+		level = 0
+	}
+	// The ring envelope tends to stay near full-scale on mastered tracks.
+	// Expand its useful movement range instead of leaving all cells full.
+	level = math.Pow(math.Max(0, math.Min(1, level)), 2.2)
+	dt := now.Sub(h.lastAt).Seconds()
+	if h.lastAt.IsZero() || dt <= 0 || dt > .5 {
+		*h = miniVUHistory{}
+		dt = .04
+	}
+	h.lastAt = now
 	h.samples[h.next] = miniLevelSample{now, level}
 	h.next = (h.next + 1) % len(h.samples)
 	var glyphs [4]byte
 	for i := range glyphs {
-		target := now.Add(-time.Duration(i) * 80 * time.Millisecond)
-		var best miniLevelSample
-		for _, sample := range h.samples {
-			if !sample.at.IsZero() && !sample.at.After(target) && sample.at.After(best.at) {
-				best = sample
-			}
+		target := h.delayedLevel(now, now.Add(-time.Duration(i)*100*time.Millisecond))
+		tau := .32 // relaxed falling tail; quick but not instant attack
+		if target > h.columns[i] {
+			tau = .045
 		}
-		if !best.at.IsZero() && now.Sub(best.at) <= 500*time.Millisecond {
-			glyphs[i] = miniVUCell(best.level)
-		}
+		h.columns[i] += (target - h.columns[i]) * (1 - math.Exp(-dt/tau))
+		h.bands[i] = miniVUBand(h.bands[i], h.columns[i])
+		glyphs[i] = miniVUMasks[h.bands[i]]
 	}
 	return miniSegmentFrame(glyphs, [2]byte{})
 }
@@ -195,7 +251,7 @@ func (d *miniDisplayVU) tick(now time.Time, active bool) {
 	if now.Before(d.next) {
 		return
 	}
-	d.next = now.Add(80 * time.Millisecond) // at most 12.5 Hz; no PCM or receiver changes
+	d.next = now.Add(35 * time.Millisecond) // 25 Hz on the existing 40 ms UI tick
 	_, enabled := os.Stat("/tmp/capsula-mini-display-vu")
 	if enabled != nil {
 		d.release(!miniBusy())
