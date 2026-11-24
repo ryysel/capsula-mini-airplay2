@@ -1,11 +1,11 @@
 2380537ff778f1cfbe32f2dddc1a8438ef92d3c6b4116411993cd6b6c2f8dc17  ./.gitattributes
 47bb434f9c0c572a5a028033eaed2aa7d48a19843a7a106f035d3a0d1c6c8ffb  ./.gitignore
-bbd87ef86dd1470c245d180a7019e107714b13e7442dafac8217e44374b8e04e  ./CHANGELOG.md
+c3abee396bd7803ede77f6bb317721d346cc6acd0a5f860f99f491afe9ce1aa2  ./CHANGELOG.md
 54d3e2443cd0d754f110df1b206ed5897dde6030045c51ab0abd878190d54448  ./Install-Windows.cmd
 7e6b3f61c789bb205e9f6f14ff3956bc19c638644d61c4572050e18b64fe5848  ./LICENSE
 e4335134554ea972b914b352657f74d50c044385dd2b08c57ea791fa29b74c8e  ./NOTICE.md
-f93fbe30fc46a3df62a24ab889c1a07e6b9b331a5ad90ac0b2d1dee82dfc9955  ./README.md
-879a67a197446479e783c8e22a58681fed324f09eac1ce808f6a5a4c5e1894ad  ./VERSION
+87d283465033c07f52a50f8a2f71393b6c19c2fe1cacfa2ed7eb91b3dadb34f7  ./README.md
+04c93b7e7635a43d0cb6d097f9af0a72a9973041d11847e521cc682f1668c605  ./VERSION
 b2f4968a8fd0e94b12ba568e6ef38d274596288e0041ef777999db5c0dd99f96  ./build/BUILD_INFO-2019.txt
 5e7299122c8e0d72cc2bd68b353e828e764fb4b76257a3b16d428d7176bc86b0  ./build/BUILD_INFO.txt
 782f4ec386fc61837353dee452dcb9f652d3cd324a38b98c4ba1ae7e86d4091e  ./build/BUILD_INFO_CONTROL.txt
@@ -23,11 +23,12 @@ f1a55abdf9b05990d3b14b891cc02b332e5e89595e2a82d4dc36b32f27706b48  ./docs/RELEASE
 49c973705b143fc033a770241e02e0819926e8724dc19199faf602da575ef345  ./docs/RELEASE_1_5_1.md
 827c2e8f8e7b5e9a927ddbe6346fc3b8f6c1f71dd728869d0a68ad6baa56b3a5  ./docs/RELEASE_1_5_2.md
 10353d32af2e60f07546578bef4fd41cb12026385d235dd7800b920de0742b90  ./docs/RELEASE_1_5_3.md
+57aad0eb4275030ec05f058454122e2a5140198d4b29689a7a0d0d0b2eced8c7  ./docs/RELEASE_1_5_5.md
 859a30d3c3da21263d7b5adf72e33c651e69977c1e17729f12b86516c0d22d14  ./docs/SIZE_20261115.md
 3a161c08c6ca5ac8eda49d740db5cef37512d70bd0bb5bbda5a8f47e874c9698  ./docs/STOCK_FIXES_20261114.md
 9db6ab114349bd3ee01d16658f71b2b34f1aa30f9894da31af0f3450a205a1b6  ./docs/UPDATES_20261030.md
 e110ff102698f94481a1f8c24a8c25bd235bd6a53361ff23b19f5f83e5880efe  ./docs/VALIDATION_20261030.md
-77161cdd5e609121d9a5d2369c3d8602b1c35d14e415a64fa7cd805b5b2fb98d  ./docs/WINDOWS.md
+fbc7b6b2b50713d0e5b1bca5fa5baf034b2c0008e13f0e98d395b433cab1c6a4  ./docs/WINDOWS.md
 869913ac289132c9d47017afef9470e2c713223f7e6574d9632bcab7a4f59b0d  ./install.sh
 911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad  ./licenses/x-image-LICENSE
 c254cb0cbba93de7cf93faf7b82319ac42927ca901902bca8deafbedc6496dc8  ./packages/capsula-2019/SHA256SUMS
@@ -88,7 +89,7 @@ b96cfa896b993ec6312f7ae6485094abcc38ce5e2003aebe22e533ecd18137b2  ./packages/min
 bcf53437e53721b69267d3226b5ac37a9dfe5c97eef749cef279a739a764abed  ./packages/mini-a113x/src/capsula-art/main.go
 617674660a0fb5fffb8c4ce7bf6e24ae9297e79b7ac2a654005b83bba10774f7  ./packages/mini-a113x/src/capsula-art/main_test.go
 687d59f39a98a2a71767726539719c6af369637185189fafe452100b3ce8be4d  ./packages/mini-a113x/uninstall.sh
-71943ea84493d12d384165ceecdcf827988c2b3b329e66560cfbd54b25779abe  ./packages/mini-stock/SHA256SUMS
+76b98d51c9f14b2842b887c27f8c9348482bcf9c431668fe7f92affafc7ec68c  ./packages/mini-stock/SHA256SUMS
 293873708141b748118a5133b4ecd64e5c5d6ccaf39e48844252ddcd08c9db3b  ./packages/mini-stock/bin/capsula-airplay-keys
 8a4b30a2a30d8a3a95b90dee794d9e4c4050f22e1325abb3d26ae7a10d9f4ecc  ./packages/mini-stock/bin/capsula-ui
 7581f2a9879fcd79db160f57889e80c912cad564edcf446bb3d0d06394c57e67  ./packages/mini-stock/bin/libuuid.so.1.3.0
@@ -99,7 +100,7 @@ e6192ac6073f8b5055673c5f603a3f6456a57373450a31520dc5a33c16265e2c  ./packages/min
 7d8224758d15f497e01b0a573d95dff15b31086f95168d495abfca3f2deb2653  ./packages/mini-stock/etc/init.d.nqptp
 e23c31aa6a07626005dccd7ed28457d6e9243c38b510a234b859c456bc5ab6ff  ./packages/mini-stock/etc/init.d.shairport-sync
 113619504e5ba37fcb67afa63b2b0d469f1a63675cea95e3296290b247678d61  ./packages/mini-stock/etc/shairport-sync.conf
-d1427f76b4e4619f67f95718a97457b0c9f7c4a619bc5760fdc481b4c8b1735b  ./packages/mini-stock/install.sh
+c7e9455615b84ae2c079472ff497821d4feee29580300e9aaa60dd43d6868a0c  ./packages/mini-stock/install.sh
 911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad  ./packages/mini-stock/licenses/x-image-LICENSE
 f6b1ce86a134e34b3d45dda1e09b4b723f4673f752013d27a5680fb5532cbed3  ./packages/mini-stock/src/BUILD.md
 fc3fc91ae1fb7d4bbf0512fc1b626d18148cfd741817db8d79e46f66eedf7d69  ./packages/mini-stock/src/capsula-airplay-keys.c
@@ -116,6 +117,7 @@ d9bd8e80a4aa44a1953000d7234e02a2df66531ac5910bb81824507d7dab5b93  ./tests/Test-W
 80ac5df5d4804eee84adb65b75118e61912b87a1fa44f83246ea65643e9debdb  ./tests/capsula-audio-helpers.h
 a54d7733f8d75a1cd1ca98c18688993aae480f0475e2a4f7257fc1ae2622c983  ./tests/test-capsula-audio.c
 0faff9bea8ec5813f641d41bd7d9b677fa319f47daee9aa137e5c74edcca78ee  ./tests/test-install.sh
+10c6dde79388c834522f9e62ca5251888fa3d40181635399feb4fdf0fde73271  ./tests/test-mini-stock-timing.py
 eff84784c066cc77f483a7e99faa7847d23cf92b8d1944d5fe1a9c8fc258bde0  ./tests/test-timing-profile.sh
 83e699e6e88d0fe017b7ad2c1dd35e8d352322fddc674f69dce64102496f6f65  ./uninstall.sh
 3bfe7d297ae7fb4c18977c78864a99d10fbd023871d9a00fe962fc789c2cda49  ./windows/Install-AirPlay.ps1

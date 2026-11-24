@@ -159,7 +159,7 @@ fi
 
 case "$timing_mode" in
     synchronized) buffer=0.20; offset=0.0 ;;
-    *) buffer=0.10; offset=-1.7 ;;
+    *) buffer=0.15; offset=-1.7 ;;
 esac
 : > "$CONF.new"
 while IFS= read -r line || [ -n "$line" ]; do

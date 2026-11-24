@@ -45,7 +45,7 @@
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File windows\Install-AirPlay.ps1 `
-  -HostName 192.168.0.168 -Port 22 -KeyFile C:\keys\id_ed25519 `
+  -HostName 192.0.2.10 -Port 22 -KeyFile C:\keys\id_ed25519 `
   -Name "VK Capsula Mini AirPlay (Коридор)" -Yes
 ```
 
