@@ -67,7 +67,7 @@ OTA и аккаунт установщик не меняет.
 source overlay последним, поверх исторических inline-патчей.
 
 
-## Music VU display (v1.6.0-rc.2, experimental)
+## Music VU display (v1.6.0-rc.3)
 
 From `packages/mini-stock`: `sh install.sh --upgrade --display-vu`.
 Four seven-segment columns follow real PCM levels; this is not an FFT.
@@ -76,4 +76,6 @@ installs keep stock clock by default. `--clock` disables during upgrade.
 To disable immediately without stopping music, remove both
 `/data/local/capsula-airplay/etc/mini-display-vu.enabled` and
 `/tmp/capsula-mini-display-vu`.
-See [RC validation limits](RELEASE_1_6_0_RC2.md).
+The native display arbiter needs one manual reboot when first installed.
+Do not restart voice-agent. No direct sysfs fallback is used.
+See [RC installation and validation limits](RELEASE_1_6_0_RC3.md).

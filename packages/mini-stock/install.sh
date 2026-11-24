@@ -71,6 +71,7 @@ for pair in \
     "bin/shairport-sync|$DEST/bin/shairport-sync" \
     "bin/nqptp|$DEST/bin/nqptp" \
     "bin/capsula-ui|$DEST/bin/capsula-ui" \
+    "bin/libcapsula-display-arbiter.so|$DEST/bin/libcapsula-display-arbiter.so" \
     "bin/capsula-airplay-keys|$DEST/bin/capsula-airplay-keys" \
     "bin/libuuid.so.1.3.0|$DEST/bin/libuuid.so.1.3.0" \
     "etc/init.d.nqptp|$DEST/init.d/nqptp" \
@@ -86,6 +87,12 @@ for pair in \
 done
 [ ! -L "$CONF" ] || die "Refusing symlink: $CONF"
 [ ! -L "$DEST/etc/mini-display-vu.enabled" ] || die 'Refusing symlink: display VU setting'
+for setting in "$DEST/etc/mini-display-arbiter.enabled" "$DEST/etc/mini-display-arbiter.pending"; do
+    [ ! -L "$setting" ] || die "Refusing symlink: $setting"
+done
+if [ "$display_mode" = vu ] || { [ "$display_mode" = preserve ] && [ -f "$DEST/etc/mini-display-vu.enabled" ]; }; then
+    sh "$root/display-arbiter-install.sh" check
+fi
 
 free=$(df -Pk /data | tail -1 | tr -s ' ' | cut -d' ' -f4)
 required=18000
@@ -137,6 +144,12 @@ for f in shairport-sync nqptp capsula-ui capsula-airplay-keys; do
     cp "bin/$f" "$DEST/bin/$f"
     chmod 0755 "$DEST/bin/$f"
 done
+# An adapter may be mapped by voice-agent: never truncate/overwrite its inode.
+if ! same_file bin/libcapsula-display-arbiter.so "$DEST/bin/libcapsula-display-arbiter.so"; then
+    cp bin/libcapsula-display-arbiter.so "$DEST/bin/libcapsula-display-arbiter.so.new"
+    chmod 0644 "$DEST/bin/libcapsula-display-arbiter.so.new"
+    mv "$DEST/bin/libcapsula-display-arbiter.so.new" "$DEST/bin/libcapsula-display-arbiter.so"
+fi
 cp bin/libuuid.so.1.3.0 "$DEST/bin/libuuid.so.1.3.0"
 chmod 0644 "$DEST/bin/libuuid.so.1.3.0"
 ln -sf libuuid.so.1.3.0 "$DEST/bin/libuuid.so.1"
@@ -157,6 +170,12 @@ case "$display_mode" in
     *) die 'Invalid display mode' ;;
 esac
 # END DISPLAY MODE MIGRATION
+
+if [ -f "$DEST/etc/mini-display-vu.enabled" ]; then
+    sh "$root/display-arbiter-install.sh" install
+else
+    sh "$root/display-arbiter-install.sh" disable
+fi
 
 if [ "$name_mode" = custom ]; then
     : > "$CONF.new"

@@ -5,13 +5,10 @@ package main
 // The stock display is four seven-segment cells, with two colon channels.
 // Opt in for this boot only: /tmp/capsula-mini-display-vu.
 import (
-	"context"
 	"fmt"
 	"math"
+	"net"
 	"os"
-	"os/exec"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -147,142 +144,104 @@ func (h *miniVUHistory) frame(now time.Time, level float64) [30]byte {
 	return miniSegmentFrame(glyphs, [2]byte{})
 }
 
+// The native process is the only hardware writer. We publish leased frames;
+// there is deliberately NO sysfs fallback when the arbiter is unavailable.
 type miniDisplayVU struct {
-	files   [30]*os.File
-	last    [30]byte
-	colon   [2]byte
+	conn    *net.UnixConn
 	history miniVUHistory
 	open    bool
-	failed  bool
 	next    time.Time
 }
 
 var displayVU miniDisplayVU
 
-func stockClockText() (string, error) {
-	// Stock's date respects its own timezone configuration (not Go's UTC
-	// fallback on Buildroot). Fixed arguments; no account/config data read.
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer cancel()
-	out, err := exec.CommandContext(ctx, "date", "+%H%M").Output()
-	return strings.TrimSpace(string(out)), err
-}
+const miniArbiterSocket = "/tmp/capsula-mini-display-arbiter.sock"
+const miniArbiterStatus = "/tmp/capsula-mini-display-arbiter.status"
 
 func (d *miniDisplayVU) acquire() error {
-	var snapshot [30]byte
-	for i := range snapshot {
-		path := fmt.Sprintf("/sys/class/leds/clock-led%d/brightness", i+1)
-		b, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		n, err := strconv.Atoi(strings.TrimSpace(string(b)))
-		if err != nil || n < 0 || n > 1 {
-			return fmt.Errorf("unrecognised display state")
-		}
-		snapshot[i] = byte(n)
-	}
-	d.colon = [2]byte{snapshot[miniClockMap[14]], snapshot[miniClockMap[15]]}
-	text, err := stockClockText()
+	status, err := os.Stat(miniArbiterStatus)
 	if err != nil {
 		return err
 	}
-	expected, ok := miniClockFrame(text, d.colon)
-	if !ok || expected != snapshot {
-		return fmt.Errorf("display not showing the expected stock clock; yield")
+	age := time.Since(status.ModTime())
+	if age < -time.Second || age > 3*time.Second {
+		return fmt.Errorf("native display arbiter heartbeat stale")
 	}
-	for i := range d.files {
-		f, err := os.OpenFile(fmt.Sprintf("/sys/class/leds/clock-led%d/brightness", i+1), os.O_WRONLY, 0)
-		if err != nil {
-			d.close()
-			return err
-		}
-		d.files[i] = f
+	conn, err := net.DialUnix("unixgram", nil, &net.UnixAddr{Name: miniArbiterSocket, Net: "unixgram"})
+	if err != nil {
+		return err
 	}
-	d.last, d.open = snapshot, true
+	d.conn, d.open = conn, true
 	return nil
 }
 
-func (d *miniDisplayVU) close() {
-	for i, f := range d.files {
-		if f != nil {
-			f.Close()
-			d.files[i] = nil
+func miniArbiterPacket(frame [30]byte, active bool) ([40]byte, error) {
+	var out [40]byte
+	copy(out[:4], "CDV1")
+	if active {
+		out[4] = 1
+	}
+	for i, on := range frame {
+		if on > 1 {
+			return [40]byte{}, fmt.Errorf("invalid display segment")
 		}
+		out[8+i] = on
+	}
+	return out, nil
+}
+
+func (d *miniDisplayVU) send(frame [30]byte, active bool) error {
+	if d.conn == nil {
+		return fmt.Errorf("native display arbiter disconnected")
+	}
+	packet, err := miniArbiterPacket(frame, active)
+	if err != nil {
+		return err
+	}
+	if err = d.conn.SetWriteDeadline(time.Now().Add(5 * time.Millisecond)); err != nil {
+		return err
+	}
+	_, err = d.conn.Write(packet[:])
+	return err
+}
+
+func (d *miniDisplayVU) release(_ bool) {
+	if d.conn != nil {
+		_ = d.send([30]byte{}, false)
+		d.conn.Close()
+		d.conn = nil
 	}
 	d.open = false
 	d.history = miniVUHistory{}
 }
 
-func (d *miniDisplayVU) write(frame [30]byte, force bool) error {
-	for i, f := range d.files {
-		if f == nil {
-			return fmt.Errorf("display closed")
-		}
-		if !force && frame[i] == d.last[i] {
-			continue
-		}
-		if _, err := f.WriteAt([]byte{'0' + frame[i]}, 0); err != nil {
-			return err
-		}
-	}
-	d.last = frame
-	return nil
-}
-
-func (d *miniDisplayVU) release(restore bool) {
-	if !d.open {
-		return
-	}
-	if restore {
-		if text, err := stockClockText(); err == nil {
-			if frame, ok := miniClockFrame(text, d.colon); ok {
-				_ = d.write(frame, true)
-			}
-		}
-	}
-	d.close()
-}
-
 func (d *miniDisplayVU) tick(now time.Time, active bool) {
-	if !miniHardware {
+	if !miniHardware || now.Before(d.next) {
 		return
 	}
-	if now.Before(d.next) {
-		return
-	}
-	d.next = now.Add(35 * time.Millisecond) // 25 Hz on the existing 40 ms UI tick
+	d.next = now.Add(35 * time.Millisecond)
 	_, enabled := os.Stat("/tmp/capsula-mini-display-vu")
-	if enabled != nil {
-		d.release(!miniBusy())
-		d.failed = false
-		return
-	}
-	if miniBusy() {
-		// Do not restore a clock over native volume/assistant animation.
+	if enabled != nil || miniBusy() || !active {
 		d.release(false)
 		return
 	}
 	fresh := false
 	if st, err := os.Stat("/tmp/capsula-airplay-level"); err == nil {
-		fresh = now.Sub(st.ModTime()) >= -time.Second && now.Sub(st.ModTime()) < 350*time.Millisecond
+		age := now.Sub(st.ModTime())
+		fresh = age >= -time.Second && age < 350*time.Millisecond
 	}
-	if !active || !fresh {
-		d.release(true)
-		return
-	}
-	if d.failed {
+	if !fresh {
+		d.release(false)
 		return
 	}
 	if !d.open {
 		if err := d.acquire(); err != nil {
-			// Retry a clock transition or native animation with low overhead.
 			d.next = now.Add(time.Second)
 			return
 		}
 	}
-	if err := d.write(d.history.frame(now, beatEnvelope), true); err != nil {
-		d.release(true)
-		d.failed = true // fail closed until opt-in is removed
+	if err := d.send(d.history.frame(now, beatEnvelope), true); err != nil {
+		d.release(false)
+		d.next = now.Add(time.Second)
 	}
 }

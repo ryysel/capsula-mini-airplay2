@@ -1,0 +1,10 @@
+Exact deployed components:
+Big UI c9c9d16f6cca550eef67078aa13bb28608c7586308ddb0d380e764823733e389
+  neutral palette source 7ab1c69; shared Go ARM64, buildvcs=false, trimpath, -s -w.
+Mini UI d7dff94a0b0e5a56b25a9c2a8ced1124c94201641d2021bb23a4e97f8166eeae
+  native-arbiter client source eafb94d; same Go 1.26 ARM64 flags.
+Mini adapter 190dd13fff1c9b1601459df1a62cfc704d750371f35c0a991f4f1a7de7c01283
+  revision-2 source 7c72e14; aarch64 GCC-10, -O2 -fPIC -shared -pthread,
+  relro/now, soname libcapsula-display-arbiter.so; GLIBC_2.17.
+Go payloads unpacked. Audio receivers unchanged from rc.2; Alpine unchanged.
+Actual flashlight capture and user covers are outside the source/archive.
