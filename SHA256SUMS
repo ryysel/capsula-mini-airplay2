@@ -10,7 +10,7 @@ b2f4968a8fd0e94b12ba568e6ef38d274596288e0041ef777999db5c0dd99f96  ./build/BUILD_
 5e7299122c8e0d72cc2bd68b353e828e764fb4b76257a3b16d428d7176bc86b0  ./build/BUILD_INFO.txt
 782f4ec386fc61837353dee452dcb9f652d3cd324a38b98c4ba1ae7e86d4091e  ./build/BUILD_INFO_CONTROL.txt
 796dc3f8911480a460d90f714c4fe4714d3eaf7f561a4862ad3640feec7e86a8  ./build/Dockerfile
-fae962de095d0b32bc1f5c2f91af397fd7dea83eba7819487c7dc74fb63a2bab  ./build/build-2019.sh
+323d006ab7022c71c2e848867c33ff53d7756485480c2955b08f370fa8716d80  ./build/build-2019.sh
 1d56693ae3328f1f221f41c636449f2d17c05e4e4016f04ca41b075a005bd3f2  ./build/build-mini-stock.sh
 2990b4d1138171149b87a9fae373e0c4f89dd249902ee92efe569374b3b2314e  ./build/build-mini.sh
 4ef5a492b4798a22928539207dbc11b073691c1058f08e4a54a43e7e43e6609b  ./build/capsula-media-control.c
@@ -25,13 +25,14 @@ f1a55abdf9b05990d3b14b891cc02b332e5e89595e2a82d4dc36b32f27706b48  ./docs/RELEASE
 10353d32af2e60f07546578bef4fd41cb12026385d235dd7800b920de0742b90  ./docs/RELEASE_1_5_3.md
 57aad0eb4275030ec05f058454122e2a5140198d4b29689a7a0d0d0b2eced8c7  ./docs/RELEASE_1_5_5.md
 859a30d3c3da21263d7b5adf72e33c651e69977c1e17729f12b86516c0d22d14  ./docs/SIZE_20261115.md
+bfb988f265859e48c665c2ec18cadaefc2343015bb476c2326a3735d2120c87d  ./docs/STARTUP_GATE_CANDIDATE.md
 3a161c08c6ca5ac8eda49d740db5cef37512d70bd0bb5bbda5a8f47e874c9698  ./docs/STOCK_FIXES_20261114.md
 9db6ab114349bd3ee01d16658f71b2b34f1aa30f9894da31af0f3450a205a1b6  ./docs/UPDATES_20261030.md
 e110ff102698f94481a1f8c24a8c25bd235bd6a53361ff23b19f5f83e5880efe  ./docs/VALIDATION_20261030.md
 fbc7b6b2b50713d0e5b1bca5fa5baf034b2c0008e13f0e98d395b433cab1c6a4  ./docs/WINDOWS.md
 869913ac289132c9d47017afef9470e2c713223f7e6574d9632bcab7a4f59b0d  ./install.sh
 911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad  ./licenses/x-image-LICENSE
-c254cb0cbba93de7cf93faf7b82319ac42927ca901902bca8deafbedc6496dc8  ./packages/capsula-2019/SHA256SUMS
+902eb6153eeecc5f75ad595ee8597e1439ddf2a6d669dd36549133ddca60e664  ./packages/capsula-2019/SHA256SUMS
 e1dd9b165138d8ae59f050c6b6abe98e075107b39dc7929021e29b06f1996df8  ./packages/capsula-2019/bin/capsula-led-media
 8a4b30a2a30d8a3a95b90dee794d9e4c4050f22e1325abb3d26ae7a10d9f4ecc  ./packages/capsula-2019/bin/capsula-ui
 8a9ac4999efe61ca7d84556fefeeb3e8facf005e48321aee6be3c6654b5ff3b0  ./packages/capsula-2019/bin/nqptp
@@ -61,6 +62,8 @@ dfe9f52a70921062fb8b85a239d5354bbae35cbcdbb32640fb21c052c234d0b4  ./packages/cap
 a1ca43d38358c7fc76ff589f54f6ec9d8ec23be6a91255c5a385fe330ea559e3  ./packages/capsula-2019/src/receiver/audio_pa.c
 80ac5df5d4804eee84adb65b75118e61912b87a1fa44f83246ea65643e9debdb  ./packages/capsula-2019/src/receiver/capsula-audio-helpers.h
 4ef5a492b4798a22928539207dbc11b073691c1058f08e4a54a43e7e43e6609b  ./packages/capsula-2019/src/receiver/capsula-media-control.c
+3b90729fd8dc126273e48faba4362bb1bf074224a5ab77314c24104ba68bba1c  ./packages/capsula-2019/src/receiver/capsula-startup-gate.h
+c4e096d66d3eb121ec64d17685d56ad1cff9296fee6acf95a1466d65e2b95d23  ./packages/capsula-2019/src/receiver/player.c
 db9905e9bf835c89c406a4a2a94049da7ad908338fd4c4cd45fb97aefd59dc4b  ./packages/capsula-2019/src/receiver/rtsp.c
 c87dba3e573aa87ae4e97a856c668d96c647dcfb485815397541952172f742ea  ./packages/capsula-2019/src/receiver/shairport.c
 f5aea266e73873afae6c79facef986efe4318d555a822449f8f962d13d1e7648  ./packages/capsula-2019/uninstall.sh
@@ -116,6 +119,7 @@ f49fdba59514fd147d25b856fa6502fc20e05aa26472907e569c834dd4375c20  ./packages/min
 d9bd8e80a4aa44a1953000d7234e02a2df66531ac5910bb81824507d7dab5b93  ./tests/Test-Wizard.ps1
 80ac5df5d4804eee84adb65b75118e61912b87a1fa44f83246ea65643e9debdb  ./tests/capsula-audio-helpers.h
 a54d7733f8d75a1cd1ca98c18688993aae480f0475e2a4f7257fc1ae2622c983  ./tests/test-capsula-audio.c
+e00e980eb867761d32ae815c43c458a380f449afe0d3644965021b429a5e0899  ./tests/test-capsula-startup-gate.c
 0faff9bea8ec5813f641d41bd7d9b677fa319f47daee9aa137e5c74edcca78ee  ./tests/test-install.sh
 10c6dde79388c834522f9e62ca5251888fa3d40181635399feb4fdf0fde73271  ./tests/test-mini-stock-timing.py
 eff84784c066cc77f483a7e99faa7847d23cf92b8d1944d5fe1a9c8fc258bde0  ./tests/test-timing-profile.sh
