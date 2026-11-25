@@ -31,22 +31,15 @@ func TestMiniClockMapping(t *testing.T) {
 	}
 }
 
-func TestMiniVUCells(t *testing.T) {
+func TestMiniVUHorizontalGlyphs(t *testing.T) {
 	for _, v := range []float64{0, -1, math.NaN(), math.Inf(1), math.Inf(-1)} {
-		if miniVUCell(v) != 0 {
-			t.Fatal("invalid/silent audio lit display")
+		if miniVUBand(0, v) != 0 {
+			t.Fatal("invalid or silent audio lit display")
 		}
 	}
-	previous := byte(0)
-	for _, v := range []float64{.1, .3, .5, .7, 1} {
-		mask := miniVUCell(v)
-		if mask&previous != previous {
-			t.Fatal("column shrank as level increased")
-		}
-		previous = mask
-	}
-	if previous != 0x7f {
-		t.Fatal("full height missing")
+	if miniVUMasks[miniVUBand(0, .25)] != 0x40 ||
+		miniVUMasks[miniVUBand(0, .90)] != 0x49 {
+		t.Fatal("wave must use horizontal segments only")
 	}
 }
 
@@ -69,18 +62,19 @@ func TestMiniVUSmoothWave(t *testing.T) {
 	now := time.Unix(100, 0)
 	var h miniVUHistory
 	h.frame(now, 0)
-	h.frame(now.Add(40*time.Millisecond), 1)
-	peak := h.columns[0]
-	if peak <= .4 || peak >= 1 || h.columns[1] != 0 {
-		t.Fatal("attack or real travelling delay", h.columns)
+	got := h.frame(now.Add(40*time.Millisecond), 1)
+	want := miniSegmentFrame([4]byte{0, 0x49, 0x49, 0}, [2]byte{})
+	if got != want {
+		t.Fatal("wave did not start with a symmetric inner accent")
 	}
+	peak := h.columns[1]
 	h.frame(now.Add(80*time.Millisecond), 0)
-	if h.columns[0] <= peak*.8 || h.columns[0] >= peak {
-		t.Fatal("falling tail is not smooth", h.columns[0])
+	if h.columns[1] <= peak*.8 || h.columns[1] >= peak {
+		t.Fatal("falling tail is not smooth", h.columns)
 	}
 	h.frame(now.Add(120*time.Millisecond), 0)
-	if h.columns[1] <= 0 || h.columns[2] != 0 {
-		t.Fatal("pulse did not travel through real history", h.columns)
+	if h.columns[0] <= 0 || h.columns[0] != h.columns[3] || h.columns[1] != h.columns[2] {
+		t.Fatal("pulse did not travel symmetrically from the centre", h.columns)
 	}
 	for i := 4; i < 90; i++ {
 		frame := h.frame(now.Add(time.Duration(i)*40*time.Millisecond), 0)
@@ -91,16 +85,13 @@ func TestMiniVUSmoothWave(t *testing.T) {
 }
 
 func TestMiniVUHysteresis(t *testing.T) {
-	if got := miniVUBand(2, .405); got != 2 {
-		t.Fatal("threshold chatter on rise", got)
+	if miniVUBand(1, .49) != 1 || miniVUBand(2, .47) != 2 {
+		t.Fatal("threshold chatter")
 	}
-	if got := miniVUBand(3, .395); got != 3 {
-		t.Fatal("threshold chatter on fall", got)
-	}
-	if miniVUBand(2, .45) != 3 || miniVUBand(3, .35) != 2 {
+	if miniVUBand(1, .53) != 2 || miniVUBand(2, .44) != 1 {
 		t.Fatal("real transition suppressed")
 	}
-	if miniVUBand(5, math.NaN()) != 0 || miniVUBand(5, 0) != 0 {
+	if miniVUBand(2, math.NaN()) != 0 || miniVUBand(2, 0) != 0 {
 		t.Fatal("invalid or silent level not cleared")
 	}
 }

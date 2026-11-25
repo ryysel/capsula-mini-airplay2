@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 package main
 
-// Experimental Mini display VU: four delayed level columns, not an FFT.
+// Experimental Mini display VU: a centre-out wave of horizontal strokes, not an FFT.
 // The stock display is four seven-segment cells, with two colon channels.
 // Opt in for this boot only: /tmp/capsula-mini-display-vu.
 import (
@@ -42,24 +42,6 @@ func miniClockFrame(text string, colon [2]byte) ([30]byte, bool) {
 	return miniSegmentFrame(glyphs, colon), true
 }
 
-func miniVUCell(level float64) byte {
-	if math.IsNaN(level) || math.IsInf(level, 0) || level < .035 {
-		return 0
-	}
-	switch {
-	case level < .2:
-		return 0x08 // bottom
-	case level < .4:
-		return 0x1c // lower sides and bottom
-	case level < .6:
-		return 0x5c // lower half
-	case level < .8:
-		return 0x7c // both sides, middle and bottom
-	default:
-		return 0x7f // full height
-	}
-}
-
 type miniLevelSample struct {
 	at    time.Time
 	level float64
@@ -95,8 +77,8 @@ func (h *miniVUHistory) delayedLevel(now, target time.Time) float64 {
 	return before.level + t*(after.level-before.level)
 }
 
-var miniVUMasks = [6]byte{0, 0x08, 0x1c, 0x5c, 0x7c, 0x7f}
-var miniVUThresholds = [5]float64{.035, .2, .4, .6, .8}
+var miniVUMasks = [3]byte{0, 0x40, 0x49} // blank, middle, top+middle+bottom
+var miniVUThresholds = [2]float64{.035, .48}
 
 // Hysteresis avoids rapid on/off flicker when music sits near a segment step.
 func miniVUBand(previous int, level float64) int {
@@ -106,7 +88,7 @@ func miniVUBand(previous int, level float64) int {
 	if previous < 0 || previous >= len(miniVUMasks) {
 		previous = 0
 	}
-	for previous < 5 && level >= miniVUThresholds[previous]+.025 {
+	for previous < len(miniVUThresholds) && level >= miniVUThresholds[previous]+.025 {
 		previous++
 	}
 	for previous > 0 && level < miniVUThresholds[previous-1]-.025 {
@@ -132,8 +114,13 @@ func (h *miniVUHistory) frame(now time.Time, level float64) [30]byte {
 	h.next = (h.next + 1) % len(h.samples)
 	var glyphs [4]byte
 	for i := range glyphs {
-		target := h.delayedLevel(now, now.Add(-time.Duration(i)*100*time.Millisecond))
-		tau := .32 // relaxed falling tail; quick but not instant attack
+		// The inner pair responds first. Outer accents follow the same real
+		// envelope with a small delay, not an independent animation clock.
+		target := level
+		if i == 0 || i == len(glyphs)-1 {
+			target = .83 * h.delayedLevel(now, now.Add(-80*time.Millisecond))
+		}
+		tau := .22 // relaxed falling tail; quick but not instant attack
 		if target > h.columns[i] {
 			tau = .045
 		}
