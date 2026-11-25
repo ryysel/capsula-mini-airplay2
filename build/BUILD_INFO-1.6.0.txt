@@ -1,0 +1,6 @@
+Capsula 2019 Shairport Sync: f48249e267bba2049482247451c9215ef17711f440ffba25c6fe237b08344807
+Source: bec054e. Cross-built with the Capsula Buildroot sysroot and
+aarch64-linux-gnu, PulseAudio, Avahi, AirPlay 2, soxr and metadata enabled.
+ELF maximum required GLIBC symbol version: 2.29.
+Exact receiver accepted on the owner's Capsula 2019.
+Other artifacts unchanged from v1.6.0-rc.4.

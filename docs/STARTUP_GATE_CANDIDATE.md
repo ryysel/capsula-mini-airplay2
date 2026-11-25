@@ -29,3 +29,9 @@ gcc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
 The test replays the recorded -144.527 ms lead and 352-frame/44.1 kHz packet
 cadence. It validates selection policy and state/bounds, not full RTP-thread
 behaviour or physical sound. Live validation is still required.
+
+## v1.6.0 follow-up
+
+See [v1.6.0 validation and limitations](RELEASE_1_6_0.md). The gate alone
+did not reliably fix startup. The released 2019 binary also uses bounded
+vernier correction for moderate measured positive timing error at startup.
