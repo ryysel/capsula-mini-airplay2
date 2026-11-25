@@ -1,0 +1,4 @@
+Stock Mini UI: eb7963f68938e1ad5cf63c393576d3829324047319644391895e0e2688cf7125
+Source: e8b7104. Go 1.26, CGO_ENABLED=0 GOOS=linux GOARCH=arm64.
+Flags: -buildvcs=false -trimpath -ldflags="-s -w".
+Exact binary accepted on the owner's Mini. All other binaries unchanged from rc.3.
