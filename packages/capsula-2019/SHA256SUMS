@@ -33,10 +33,11 @@ e4327cf77a30bf6d9d2affa885d9e72ddb9add45a34a17e89a4b2951fb429c7a  ./src/capsula-
 dfe9f52a70921062fb8b85a239d5354bbae35cbcdbb32640fb21c052c234d0b4  ./src/ledctl.c
 0a83500390e6e2eaaa9080400640f354594f70b4c901e15fc30fcac827877dd6  ./src/receiver/README.md
 a1ca43d38358c7fc76ff589f54f6ec9d8ec23be6a91255c5a385fe330ea559e3  ./src/receiver/audio_pa.c
+7ed09c0a8867b8afb90f643852e2ed952e8eb8f519b748cec64dd565348ed201  ./src/receiver/big_startup_slew.h
 80ac5df5d4804eee84adb65b75118e61912b87a1fa44f83246ea65643e9debdb  ./src/receiver/capsula-audio-helpers.h
 4ef5a492b4798a22928539207dbc11b073691c1058f08e4a54a43e7e43e6609b  ./src/receiver/capsula-media-control.c
 3b90729fd8dc126273e48faba4362bb1bf074224a5ab77314c24104ba68bba1c  ./src/receiver/capsula-startup-gate.h
-c4e096d66d3eb121ec64d17685d56ad1cff9296fee6acf95a1466d65e2b95d23  ./src/receiver/player.c
+5e9eb195ec14b9ec4e1f400ecdc10ccbb988a9b18467f8510e72e8ac1cce8ae6  ./src/receiver/player.c
 db9905e9bf835c89c406a4a2a94049da7ad908338fd4c4cd45fb97aefd59dc4b  ./src/receiver/rtsp.c
 c87dba3e573aa87ae4e97a856c668d96c647dcfb485815397541952172f742ea  ./src/receiver/shairport.c
 f5aea266e73873afae6c79facef986efe4318d555a822449f8f962d13d1e7648  ./uninstall.sh

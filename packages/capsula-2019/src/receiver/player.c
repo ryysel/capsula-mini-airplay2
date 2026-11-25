@@ -114,6 +114,7 @@
 
 #include "activity_monitor.h"
 #include "capsula-startup-gate.h"
+#include "big_startup_slew.h"
 
 const unsigned int silent_channel_index = 65;
 const unsigned int front_mono_channel_index = 66;
@@ -3880,6 +3881,13 @@ void *player_thread_func(void *arg) {
   int request_resync = 0;      // will be set if a big discontinuity is detected
   uint32_t frames_to_skip = 0; // when a discontinuity is registered
   int skipping_frames_at_start_of_play = 0;
+  int capsula_startup_slew_enabled = 0;
+  int capsula_startup_slew_reported = 0;
+#ifdef CONFIG_AIRPLAY_2
+  capsula_startup_slew_enabled = capsula_startup_gate_enabled(conn->airplay_type == ap_2,
+      config.output && config.output->name && strcmp(config.output->name, "pulseaudio") == 0,
+      config.audio_backend_latency_offset);
+#endif
   // debug(1, "player begin processing packets");
   while (1) {
 
@@ -3927,6 +3935,7 @@ void *player_thread_func(void *arg) {
         int frames_played = 0;
         int64_t sync_error = 0;
         int amount_to_stuff = 0;
+        int capsula_use_vernier = 0;
         if (inframe->data) {
           if (play_number == 0)
             conn->playstart = get_absolute_time_in_ns();
@@ -4769,6 +4778,24 @@ void *player_thread_func(void *arg) {
                 sync_error_out_of_bounds = 0;
               }
 
+              if (capsula_startup_slew_enabled && config.no_sync == 0 &&
+                  conn->playstart && delay_measurement_time >= conn->playstart &&
+                  measurement_time < 2000000 && frames_to_skip == 0 &&
+                  inframe->timestamp != conn->first_packet_timestamp && inframe->timestamp_gap == 0 &&
+                  conn->sync_samples_count == SYNC_HISTORY_LENGTH &&
+                  sync_samples_lowest_error > 0 &&
+                  big_startup_slew(delay_measurement_time - conn->playstart,
+                                   (int64_t)(centered_sync_error_time * 1e9), sync_error_ns,
+                                   inbuflength, INTERPOLATION_LIMIT, &amount_to_stuff)) {
+                if (!capsula_startup_slew_reported && (amount_to_stuff || sync_error_out_of_bounds)) {
+                  debug(2, "capsula startup slew: %.1f ms history, %.1f ms current, %d samples adjustment",
+                        centered_sync_error_time * 1e3, sync_error_ns * 1e-6, amount_to_stuff);
+                  capsula_startup_slew_reported = 1;
+                }
+                sync_error_out_of_bounds = 0;
+                capsula_use_vernier = amount_to_stuff != 0;
+              }
+
               if (sync_error_out_of_bounds != 0) {
                 debug(2,
                       "sync error for frame %" PRIu32
@@ -4982,7 +5009,7 @@ void *player_thread_func(void *arg) {
 
                 // figure out if we're going for soxr or something else
 
-                if ((current_delay < t) || // delay is too small we definitely won't do soxr
+                if (capsula_use_vernier || (current_delay < t) || // delay is too small we definitely won't do soxr
                     (config.packet_stuffing == ST_basic) ||
                     (config.packet_stuffing == ST_vernier) ||
                     ((config.packet_stuffing == ST_auto) &&
@@ -4992,7 +5019,7 @@ void *player_thread_func(void *arg) {
                   debug(3, "current_delay: %" PRIu64 ", dac buffer queue minimum length: %f.",
                         current_delay, t);
 #endif
-                  if (config.packet_stuffing == ST_basic)
+                  if (!capsula_use_vernier && config.packet_stuffing == ST_basic)
                     play_samples = stuff_buffer_basic_32(
                         (int32_t *)conn->tbuf, inbuflength,
                         FORMAT_FROM_ENCODED_FORMAT(config.current_output_configuration),

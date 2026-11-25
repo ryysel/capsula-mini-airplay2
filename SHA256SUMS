@@ -14,7 +14,7 @@ b2f4968a8fd0e94b12ba568e6ef38d274596288e0041ef777999db5c0dd99f96  ./build/BUILD_
 5e7299122c8e0d72cc2bd68b353e828e764fb4b76257a3b16d428d7176bc86b0  ./build/BUILD_INFO.txt
 782f4ec386fc61837353dee452dcb9f652d3cd324a38b98c4ba1ae7e86d4091e  ./build/BUILD_INFO_CONTROL.txt
 796dc3f8911480a460d90f714c4fe4714d3eaf7f561a4862ad3640feec7e86a8  ./build/Dockerfile
-323d006ab7022c71c2e848867c33ff53d7756485480c2955b08f370fa8716d80  ./build/build-2019.sh
+d795611c2da1277d82965d8653d25f1835b9306f209aed11f2d2dfae569378b6  ./build/build-2019.sh
 e06de249bfb01192ed78db6b31a5c2ff7615eb84aafb852191e194aa67006a6f  ./build/build-mini-display-arbiter.sh
 1d56693ae3328f1f221f41c636449f2d17c05e4e4016f04ca41b075a005bd3f2  ./build/build-mini-stock.sh
 2990b4d1138171149b87a9fae373e0c4f89dd249902ee92efe569374b3b2314e  ./build/build-mini.sh
@@ -46,7 +46,7 @@ fbc7b6b2b50713d0e5b1bca5fa5baf034b2c0008e13f0e98d395b433cab1c6a4  ./docs/WINDOWS
 869913ac289132c9d47017afef9470e2c713223f7e6574d9632bcab7a4f59b0d  ./install.sh
 eba86eeb7b86dc54c988425d29a0fd5091fd5352bb9b9079446aa5d403eaa2df  ./licenses/UPX.txt
 911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad  ./licenses/x-image-LICENSE
-b3cfbc45d0b74a0ce3a4a658e155a578572b81579145d4ba1beae99ec7e02768  ./packages/capsula-2019/SHA256SUMS
+2152546cd7709e43cc566fe4d847746fa9a7eb62cf5c8756f719273f4e08b4c5  ./packages/capsula-2019/SHA256SUMS
 e1dd9b165138d8ae59f050c6b6abe98e075107b39dc7929021e29b06f1996df8  ./packages/capsula-2019/bin/capsula-led-media
 c9c9d16f6cca550eef67078aa13bb28608c7586308ddb0d380e764823733e389  ./packages/capsula-2019/bin/capsula-ui
 8a9ac4999efe61ca7d84556fefeeb3e8facf005e48321aee6be3c6654b5ff3b0  ./packages/capsula-2019/bin/nqptp
@@ -82,10 +82,11 @@ e4327cf77a30bf6d9d2affa885d9e72ddb9add45a34a17e89a4b2951fb429c7a  ./packages/cap
 dfe9f52a70921062fb8b85a239d5354bbae35cbcdbb32640fb21c052c234d0b4  ./packages/capsula-2019/src/ledctl.c
 0a83500390e6e2eaaa9080400640f354594f70b4c901e15fc30fcac827877dd6  ./packages/capsula-2019/src/receiver/README.md
 a1ca43d38358c7fc76ff589f54f6ec9d8ec23be6a91255c5a385fe330ea559e3  ./packages/capsula-2019/src/receiver/audio_pa.c
+7ed09c0a8867b8afb90f643852e2ed952e8eb8f519b748cec64dd565348ed201  ./packages/capsula-2019/src/receiver/big_startup_slew.h
 80ac5df5d4804eee84adb65b75118e61912b87a1fa44f83246ea65643e9debdb  ./packages/capsula-2019/src/receiver/capsula-audio-helpers.h
 4ef5a492b4798a22928539207dbc11b073691c1058f08e4a54a43e7e43e6609b  ./packages/capsula-2019/src/receiver/capsula-media-control.c
 3b90729fd8dc126273e48faba4362bb1bf074224a5ab77314c24104ba68bba1c  ./packages/capsula-2019/src/receiver/capsula-startup-gate.h
-c4e096d66d3eb121ec64d17685d56ad1cff9296fee6acf95a1466d65e2b95d23  ./packages/capsula-2019/src/receiver/player.c
+5e9eb195ec14b9ec4e1f400ecdc10ccbb988a9b18467f8510e72e8ac1cce8ae6  ./packages/capsula-2019/src/receiver/player.c
 db9905e9bf835c89c406a4a2a94049da7ad908338fd4c4cd45fb97aefd59dc4b  ./packages/capsula-2019/src/receiver/rtsp.c
 c87dba3e573aa87ae4e97a856c668d96c647dcfb485815397541952172f742ea  ./packages/capsula-2019/src/receiver/shairport.c
 f5aea266e73873afae6c79facef986efe4318d555a822449f8f962d13d1e7648  ./packages/capsula-2019/uninstall.sh
@@ -152,6 +153,7 @@ f7f317346de9a660400faa625ed854bd5cfed1e342635ed64a4911f88833fe3b  ./packages/min
 f49fdba59514fd147d25b856fa6502fc20e05aa26472907e569c834dd4375c20  ./packages/mini-stock/voice-agent-volume-patch.sh
 d9bd8e80a4aa44a1953000d7234e02a2df66531ac5910bb81824507d7dab5b93  ./tests/Test-Wizard.ps1
 80ac5df5d4804eee84adb65b75118e61912b87a1fa44f83246ea65643e9debdb  ./tests/capsula-audio-helpers.h
+4108544aaf1b456083429661604fd1ffa830a56e488940b1b0b801ad90af4f1d  ./tests/test-big-startup-slew.c
 a54d7733f8d75a1cd1ca98c18688993aae480f0475e2a4f7257fc1ae2622c983  ./tests/test-capsula-audio.c
 e00e980eb867761d32ae815c43c458a380f449afe0d3644965021b429a5e0899  ./tests/test-capsula-startup-gate.c
 ae0c595b6b993ce23d80d75ca20d5dcbb0b3bfc2963dfce49cb8f8dd4f9d0905  ./tests/test-display-arbiter-install.py

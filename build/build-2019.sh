@@ -356,6 +356,7 @@ tar -xOf "$SRC/sps-5.6.2.tar.gz" shairport-sync-5.6.2/player.c > player.c
 # Experimental 2019-only startup scheduling overlay; do not apply to Mini.
 if [ "$model" = capsula-2019 ] && [ -f "$overlay/player.c" ]; then
     cp "$overlay/player.c" "$overlay/capsula-startup-gate.h" .
+    cp "$overlay/big_startup_slew.h" .
 fi
 run autoreconf /tmp/sps.log autoreconf -fi
 # libgcrypt is static here and needs libgpg-error symbols at link time.
