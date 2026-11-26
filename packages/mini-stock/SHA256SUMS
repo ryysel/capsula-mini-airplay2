@@ -1,5 +1,5 @@
 293873708141b748118a5133b4ecd64e5c5d6ccaf39e48844252ddcd08c9db3b  ./bin/capsula-airplay-keys
-eb7963f68938e1ad5cf63c393576d3829324047319644391895e0e2688cf7125  ./bin/capsula-ui
+b26b11c22b12db306c668cb96d57014c590d04df83cf70869baf2f7670ab6bbe  ./bin/capsula-ui
 190dd13fff1c9b1601459df1a62cfc704d750371f35c0a991f4f1a7de7c01283  ./bin/libcapsula-display-arbiter.so
 7581f2a9879fcd79db160f57889e80c912cad564edcf446bb3d0d06394c57e67  ./bin/libuuid.so.1.3.0
 8a9ac4999efe61ca7d84556fefeeb3e8facf005e48321aee6be3c6654b5ff3b0  ./bin/nqptp
@@ -12,7 +12,7 @@ c8168487636b7c6c35618677e460450f7346db21a1051153dcb85c39d576a084  ./etc/display-
 7d8224758d15f497e01b0a573d95dff15b31086f95168d495abfca3f2deb2653  ./etc/init.d.nqptp
 e23c31aa6a07626005dccd7ed28457d6e9243c38b510a234b859c456bc5ab6ff  ./etc/init.d.shairport-sync
 113619504e5ba37fcb67afa63b2b0d469f1a63675cea95e3296290b247678d61  ./etc/shairport-sync.conf
-b454bcb7d4bc51c75a4f7f8bf2717a847dfebcca54fdfad9936a285533c02463  ./install.sh
+bbebbc743ea51e7a6efc6c1fa9cc14ee70ba174878a707eba962bdd8bdd6cc1d  ./install.sh
 911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad  ./licenses/x-image-LICENSE
 cb9940761c3cf48df7dac214335114a32eb9d780bb774239b557540c7235f201  ./src/BUILD.md
 fc3fc91ae1fb7d4bbf0512fc1b626d18148cfd741817db8d79e46f66eedf7d69  ./src/capsula-airplay-keys.c
@@ -27,7 +27,7 @@ a1ca43d38358c7fc76ff589f54f6ec9d8ec23be6a91255c5a385fe330ea559e3  ./src/receiver
 4ef5a492b4798a22928539207dbc11b073691c1058f08e4a54a43e7e43e6609b  ./src/receiver/capsula-media-control.c
 db9905e9bf835c89c406a4a2a94049da7ad908338fd4c4cd45fb97aefd59dc4b  ./src/receiver/rtsp.c
 f7f317346de9a660400faa625ed854bd5cfed1e342635ed64a4911f88833fe3b  ./src/receiver/shairport.c
-5d570799d7da9c963658b80f80a3ee60b1e2861ae6ba37454cba683cf7d5eed4  ./uninstall.sh
+11133eca10f0440c81a8272917ddd9f8afae5e3344ceaecd66866916fc5082bd  ./uninstall.sh
 97dfa120cb331e921434bbf8cf75beba84566b7b7fee785768c75d1e2fab11e9  ./voice-agent-fallback.sh
 8f7fa80cf5f03c4fe460777c998c3bf1916eae9f9e6ff940b55fef562c8e7f5c  ./voice-agent-pack.sh
 f49fdba59514fd147d25b856fa6502fc20e05aa26472907e569c834dd4375c20  ./voice-agent-volume-patch.sh

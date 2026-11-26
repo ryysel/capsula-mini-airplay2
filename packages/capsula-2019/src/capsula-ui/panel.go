@@ -22,7 +22,6 @@ import (
 var panelPage []byte
 
 const (
-	panelPath = "/data/local/capsula-airplay/panel.json"
 	panelAddr = ":8088"
 )
 
@@ -42,12 +41,14 @@ type panelConfig struct {
 }
 
 var (
+	panelPath    = "/data/local/capsula-airplay/panel.json"
 	panelMu      sync.Mutex
 	panelCfg     = defaultPanel()
 	panelLive    [12][3]int
 	panelActive  bool
 	panelPalette [][3]int
 	panelLevel   float64
+	panelFlushMu sync.Mutex
 	panelDirty   bool
 	panelSavedAt int64
 )
@@ -241,14 +242,21 @@ func panelMarkDirty() {
 	panelMu.Unlock()
 }
 
-func panelFlush() {
+func panelFlush() error {
+	panelFlushMu.Lock()
+	defer panelFlushMu.Unlock()
 	panelMu.Lock()
 	dirty := panelDirty
 	panelDirty = false
 	panelMu.Unlock()
-	if dirty {
-		panelSave()
+	if !dirty {
+		return nil
 	}
+	if err := panelSave(); err != nil {
+		panelMarkDirty()
+		return err
+	}
+	return nil
 }
 
 func panelSaveLoop(ctx context.Context) {
@@ -265,21 +273,26 @@ func panelSaveLoop(ctx context.Context) {
 	}
 }
 
-func panelSave() {
+func panelSave() error {
 	c := panelSnapshot()
 	b, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
-		return
+		return err
 	}
-	if os.MkdirAll(filepath.Dir(panelPath), 0755) != nil {
-		return
+	if err := os.MkdirAll(filepath.Dir(panelPath), 0755); err != nil {
+		return err
 	}
 	tmp := panelPath + ".new"
-	if os.WriteFile(tmp, b, 0644) == nil && os.Rename(tmp, panelPath) == nil {
-		panelMu.Lock()
-		panelSavedAt = time.Now().Unix()
-		panelMu.Unlock()
+	if err := os.WriteFile(tmp, b, 0644); err != nil {
+		return err
 	}
+	if err := os.Rename(tmp, panelPath); err != nil {
+		return err
+	}
+	panelMu.Lock()
+	panelSavedAt = time.Now().Unix()
+	panelMu.Unlock()
+	return nil
 }
 
 func panelSetLevel(v float64) {
@@ -381,7 +394,10 @@ func panelHandleSave(w http.ResponseWriter, r *http.Request) {
 		panelWriteJSON(w, 405, map[string]string{"error": "method"})
 		return
 	}
-	panelFlush()
+	if err := panelFlush(); err != nil {
+		panelWriteJSON(w, 500, map[string]string{"error": "could not save calibration"})
+		return
+	}
 	panelWriteJSON(w, 200, panelViewNow())
 }
 
@@ -418,8 +434,14 @@ func servePanel() {
 	mux.HandleFunc("/api/reset", panelHandleReset)
 	mux.HandleFunc("/api/save", panelHandleSave)
 	srv := &http.Server{
-		Addr:              panelAddr,
-		Handler:           mux,
+		Addr: panelAddr,
+		Handler: http.NewCrossOriginProtection().Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost && os.Getenv("CAPSULA_PANEL_READ_ONLY") == "1" {
+				panelWriteJSON(w, http.StatusForbidden, map[string]string{"error": "read-only panel"})
+				return
+			}
+			mux.ServeHTTP(w, r)
+		})),
 		ReadHeaderTimeout: 2 * time.Second,
 		ReadTimeout:       3 * time.Second,
 		WriteTimeout:      3 * time.Second,

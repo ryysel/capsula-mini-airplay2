@@ -215,11 +215,15 @@ input[type=range]{width:100%;accent-color:#1f6feb}
     pal.forEach(function(c){var d=document.createElement('div');d.className='chip';d.style.background=hex(c);ch.appendChild(d)});
   }
 
+  function checked(response){
+    if(!response.ok) throw new Error('HTTP '+response.status);
+    return response.json();
+  }
   function refresh(){
-    fetch('api/state').then(function(r){return r.json()}).then(applyView).catch(function(){});
+    fetch('api/state').then(checked).then(applyView).catch(function(){});
   }
   function load(){
-    fetch('api/state').then(function(r){return r.json()}).then(function(s){
+    fetch('api/state').then(checked).then(function(s){
       cfg=s.config; renderControls(); applyView(s);
     }).catch(function(){ $('#status').textContent='нет связи с колонкой' });
   }
@@ -230,12 +234,12 @@ input[type=range]{width:100%;accent-color:#1f6feb}
     clearTimeout(sendTimer);
     sendTimer=setTimeout(function(){
       fetch('api/state',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(cfg)})
-        .then(function(r){return r.json()}).then(function(s){
+        .then(checked).then(function(s){
           applyView(s);
           // The POST response precedes the next 40 ms render tick; refresh the
           // preview once after the ring has actually been painted.
           setTimeout(refresh,90);
-        }).catch(function(){});
+        }).catch(function(){$('#saved').textContent='не удалось сохранить'});
     },120);
   }
 
@@ -268,18 +272,18 @@ input[type=range]{width:100%;accent-color:#1f6feb}
     clearTimeout(sendTimer);
     $('#saved').textContent='Сохраняю…';
     fetch('api/state',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(cfg)})
-      .then(function(r){return r.json()})
+      .then(checked)
       .then(function(){return fetch('api/save',{method:'POST'})})
-      .then(function(r){return r.json()})
+      .then(checked)
       .then(function(s){applyView(s)})
       .catch(function(){$('#saved').textContent='не удалось сохранить'});
   }
   $('#save').onclick=saveNow;
   $('#reset').onclick=function(){
-    fetch('api/reset',{method:'POST'}).then(function(r){return r.json()}).then(function(s){
+    fetch('api/reset',{method:'POST'}).then(checked).then(function(s){
       cfg=s.config;renderControls();applyView(s);
       return fetch('api/save',{method:'POST'});
-    }).then(function(){refresh()});
+    }).then(checked).then(refresh).catch(function(){$('#saved').textContent='не удалось сохранить'});
   };
 
   load();

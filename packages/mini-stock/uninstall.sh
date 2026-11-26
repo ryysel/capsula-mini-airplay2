@@ -6,6 +6,14 @@ D=/data/local/capsula-airplay
 UPPER=/data/overlay/upper/usr/bin/voice-agent
 WRAP=/data/overlay/upper/usr/bin/voice-agent.sh
 root=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+if [ -f "$WRAP" ] && grep -q 'capsula:fallback' "$WRAP"; then
+    wrapper_sum=$(sha256sum "$WRAP" | cut -d' ' -f1)
+    case "$wrapper_sum" in
+        82a498025166d199343398ac7f9fdcb659c472f9b0de0ab784c30d9fc11713cb|99483ff16996719e7ed2201dcf1b4a63ab15b472f15068d1c6aa77272fa3041f) : ;;
+        *) echo 'Custom wrapper: preserve it and remove package hooks manually first.' >&2; exit 1 ;;
+    esac
+fi
+
 if [ -e "$UPPER" ]; then
   if sh "$root/voice-agent-pack.sh" check; then
     # Remove the overlay copy itself, not the merged path: deleting through
@@ -18,7 +26,10 @@ if [ -e "$UPPER" ]; then
   fi
 fi
 if [ -f "$WRAP" ] && grep -q 'capsula:fallback' "$WRAP"; then
-  rm -f "$WRAP"
+  saved=$WRAP.pre-uninstall-$$
+    [ ! -e "$saved" ] || exit 1
+    mv "$WRAP" "$saved"
+    echo "Previous wrapper preserved: $saved"
   echo 'voice-agent wrapper: fallback removed'
 fi
 if [ -x "$D/S99airplay" ]; then sh "$D/S99airplay" stop || true; fi
@@ -28,6 +39,9 @@ cp /rom/etc/init.d/S50avahi-daemon /etc/init.d/S50avahi-daemon.rollback
 chmod 755 /etc/init.d/S50avahi-daemon.rollback
 mv /etc/init.d/S50avahi-daemon.rollback /etc/init.d/S50avahi-daemon
 rm -f /etc/init.d/S99airplay
-rm -rf "$D"
+# Only remove known installed files; retain calibration, backups and unrelated files.
+for file in bin/shairport-sync bin/nqptp bin/capsula-ui bin/capsula-airplay-keys bin/libuuid.so.1.3.0 bin/libuuid.so.1 init.d/nqptp init.d/shairport-sync S99airplay; do
+    rm -f "$D/$file"
+done
 echo 'AirPlay removed. Firmware and account preserved; backups remain.'
 echo 'Reboot manually to load the stock voice-agent again.'

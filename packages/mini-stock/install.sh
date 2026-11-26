@@ -6,7 +6,7 @@ set -eu
 root=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 cd "$root"
 
-timing_mode=fast_audio
+timing_mode=
 display_mode=preserve
 upgrade=no
 check=no
@@ -32,7 +32,7 @@ same_file() {
     b=$(sha256sum "$2" | cut -d' ' -f1)
     [ "$a" = "$b" ]
 }
-case "$timing_mode" in fast_audio|synchronized) ;; *) die 'Invalid timing mode';; esac
+case "$timing_mode" in ''|fast_audio|synchronized) ;; *) die 'Invalid timing mode';; esac
 uid=$(grep '^Uid:' /proc/self/status | cut -f2)
 [ "$uid" = 0 ] || die 'Run as root'
 [ "$(uname -m)" = aarch64 ] || die 'Only aarch64 is supported'
@@ -94,10 +94,21 @@ if [ "$display_mode" = vu ] || { [ "$display_mode" = preserve ] && [ -f "$DEST/e
     sh "$root/display-arbiter-install.sh" check
 fi
 
+backup_parts="bin etc init.d S99airplay panel.json"
 free=$(df -Pk /data | tail -1 | tr -s ' ' | cut -d' ' -f4)
-required=18000
-if [ ! -f /data/overlay/upper/usr/bin/voice-agent ]; then required=32000; fi
-[ "$free" -ge "$required" ] || die "Need $required KiB free on /data (backup + native-volume patch)"
+# Verify a previously patched overlay *before* reserving backup space.
+# Unpacking for verification and writing new payloads happen in separate phases.
+required=2048
+payload=$(du -sk bin | cut -f1)
+required=$((required + payload))
+voice_bytes=$(wc -c < /rom/usr/bin/voice-agent)
+voice_kib=$(( (voice_bytes + 1023) / 1024 + 1024 ))
+if [ -f /data/overlay/upper/usr/bin/voice-agent ]; then
+    [ "$free" -ge "$voice_kib" ] || die 'Insufficient room to verify the existing native-volume patch'
+else
+    required=$((required + 2 * voice_kib))
+fi
+[ "$free" -ge "$required" ] || die "Need $required KiB for installation"
 stock=$(sha256sum /rom/usr/bin/voice-agent | cut -d' ' -f1)
 [ "$stock" = e91c758edaae7ef258691438439906b4bd5986609a3be9fde946e59fc15ed9b7 ] ||
     die 'Unknown Mini voice-agent build; no patch or installation attempted'
@@ -106,29 +117,52 @@ if [ -e /data/overlay/upper/usr/bin/voice-agent ]; then
         die 'Unknown existing voice-agent overlay; refusing to overwrite'
 fi
 
-if [ "$check" = yes ]; then
-    echo 'PREFLIGHT_PASS stock-mini'
-    exit 0
+lock=/tmp/capsula-airplay-install.lock
+mkdir "$lock" || { echo 'Another installation or stale install lock' >&2; exit 1; }
+trap 'rmdir "$lock"' EXIT
+if [ "$check" != yes ] && [ -x "$DEST/bin/capsula-ui" ] && [ "$("$DEST/bin/capsula-ui" --control state 2>/dev/null || true)" = active ]; then
+    echo 'AirPlay active; disconnect before upgrading' >&2
+    exit 1
 fi
-
+(
 backup=none
 if [ -d "$DEST" ]; then
-    backup=$DEST.backup-$(date +%Y%m%d-%H%M%S)
-    cp -a "$DEST" "$backup"
-    echo "Backup: $backup"
+    backup=$DEST.backup-$(date +%Y%m%d-%H%M%S)-$$.tar.gz
+    tmp=$(mktemp -d /tmp/capsula-backup.XXXXXX)
+    trap 'rm -f "$tmp/paths" "$tmp/managed.tar" "$tmp/managed.gz" "$backup.partial"; rmdir "$tmp"' EXIT
+    : > "$tmp/paths"
+    for part in $backup_parts; do
+        [ ! -e "$DEST/$part" ] || printf '%s\n' "$part" >> "$tmp/paths"
+    done
+    if [ -s "$tmp/paths" ]; then
+        tar -C "$DEST" -cf "$tmp/managed.tar" -T "$tmp/paths"
+        gzip -c "$tmp/managed.tar" > "$tmp/managed.gz"
+        gzip -t "$tmp/managed.gz"
+        bytes=$(wc -c < "$tmp/managed.gz")
+        required=$((required + (bytes + 1023) / 1024))
+        [ "$free" -ge "$required" ] || die "Need $required KiB including compressed rollback; have $free"
+        if [ "$check" != yes ]; then
+            cp "$tmp/managed.gz" "$backup.partial" && mv "$backup.partial" "$backup"
+        fi
+    else
+        backup=none
+    fi
+    rm -f "$tmp/paths" "$tmp/managed.tar" "$tmp/managed.gz"
+    rmdir "$tmp"
+    trap - EXIT
+    if [ "$check" != yes ]; then echo "Backup: $backup"; fi
 fi
 
+if [ "$check" = yes ]; then echo 'PREFLIGHT_PASS stock-mini'; exit 0; fi
 # Stop only our services; voice-agent and the watchdog stay untouched.
-for svc in capsula-ui capsula-airplay-ring capsula-airplay-keys; do
-    pidfile=/var/run/$svc.pid
-    if [ -f "$pidfile" ]; then
-        kill "$(cat "$pidfile")" 2>/dev/null || true
-        rm -f "$pidfile"
-    fi
+for svc in capsula-ui capsula-airplay-ring capsula-airplay-keys capsula-airplay shairport-sync nqptp; do
+    for pid in $(pidof "$svc" 2>/dev/null || true); do
+        case "$(readlink "/proc/$pid/exe")" in
+            "$DEST/bin/$svc") kill "$pid" ;;
+            *) echo "Refusing to stop unmanaged $svc; inspect before retrying" >&2; exit 1 ;;
+        esac
+    done
 done
-kill "$(pidof capsula-airplay)" 2>/dev/null || true
-kill "$(pidof shairport-sync)" 2>/dev/null || true
-kill "$(pidof nqptp)" 2>/dev/null || true
 i=0
 while [ "$i" -lt 10 ] && { pidof shairport-sync >/dev/null || pidof nqptp >/dev/null; }; do
     sleep 1
@@ -189,6 +223,12 @@ if [ "$name_mode" = custom ]; then
     mv "$CONF.new" "$CONF"
 fi
 
+if [ -z "$timing_mode" ]; then
+    timing_mode=fast_audio
+    if grep -Eq '^[[:space:]]*audio_backend_latency_offset_in_seconds[[:space:]]*=[[:space:]]*[-+]?0([.]0*)?[[:space:]]*;' "$CONF"; then
+        timing_mode=synchronized
+    fi
+fi
 case "$timing_mode" in
     synchronized) buffer=0.20; offset=0.0 ;;
     *) buffer=0.15; offset=-1.7 ;;
@@ -239,3 +279,5 @@ else
     echo 'Display: stock clock (use --display-vu to enable music animation).'
 fi
 echo 'Native volume patch requires one manual reboot on first install. Never stop voice-agent.'
+
+)

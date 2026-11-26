@@ -1,7 +1,7 @@
 e1dd9b165138d8ae59f050c6b6abe98e075107b39dc7929021e29b06f1996df8  ./bin/capsula-led-media
-c9c9d16f6cca550eef67078aa13bb28608c7586308ddb0d380e764823733e389  ./bin/capsula-ui
+b26b11c22b12db306c668cb96d57014c590d04df83cf70869baf2f7670ab6bbe  ./bin/capsula-ui
 8a9ac4999efe61ca7d84556fefeeb3e8facf005e48321aee6be3c6654b5ff3b0  ./bin/nqptp
-f48249e267bba2049482247451c9215ef17711f440ffba25c6fe237b08344807  ./bin/shairport-sync
+342d30a9e2f3f594f6506e25785fbb05f440b3c86e089c831886ac8d765b74bb  ./bin/shairport-sync
 871d65c543cfda923d8502b92a58d4934c434aead8746d7b4a7f6dad66eb3dad  ./bin/upx
 fbd088b26fc06043e69012500be16fab6d883bdd1adf12ac0e8d9354858d37a9  ./etc/30-airplay.sh
 fefbe78974a9ca9b916c89764cbb14946572ea758e562c6f86e2034db7e83e3c  ./etc/apply-timing-profile.sh
@@ -10,10 +10,10 @@ fefbe78974a9ca9b916c89764cbb14946572ea758e562c6f86e2034db7e83e3c  ./etc/apply-ti
 5379efafe81a30ffba44509a01c17aece030dab8001a2f4a79c7071d9b75834f  ./etc/nqptp.init
 1887e19c4114961f87780b0ccee0bf1cd768d67dceafa4e488b72f8b0368203f  ./etc/shairport-sync.conf
 baf915640cf716fcc01a6bae6816535acf94ec812ebf8eba3ef26f792874b8ce  ./etc/shairport-sync.init
-0f6c591318ed8c9a324e90216e44e66a4418cc38135656dc1c22233e1e856aaf  ./install.sh
+97efe2f1b1e5e6608dd1ebedc6e1cb8567d631d860eaad812995cd1bdb4755e9  ./install.sh
 911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad  ./licenses/x-image-LICENSE
 9167609b70f72ca8d84ecd23019afed6ac4e4347ec1bda68110281480d1f1fa4  ./src/BUILD.md
-78d5718703f9a6efee42088afa1e2f68edc6f9ee461b77d2781cdf3f55aeda8f  ./src/capsula-ui/go.mod
+dd12064392dc86bb1241d27eec6bea6c35a8f62ebcbe65e26695eed81ec02a3e  ./src/capsula-ui/go.mod
 9660f68eb9368bcddf674978ccf43894d06f84f7d86940bc411843ed06433a14  ./src/capsula-ui/go.sum
 f6d7265c4772e9323e5395b5b659597080999627e120a5cc78a76a80e7edaddf  ./src/capsula-ui/main.go
 5418366aaab893b40234bba266ec9cb4f1d6c5045a24e731e20433d0776a5be9  ./src/capsula-ui/main_test.go
@@ -23,8 +23,9 @@ afe42977348a06b7f65580babe918df4dd0a69cbc332ff13c4bc4a6234452378  ./src/capsula-
 03e90797b4eb605a2601b2b3b87540270afa0c6222dfa7f4f12f1d8ed78622f5  ./src/capsula-ui/neutral_palette_test.go
 ab5c74f4b7825d79afc58437c845a4143f687b4bdc08ddf7577a831e8dfa26ef  ./src/capsula-ui/palette_weights.go
 d92c9d3356f9ab93430eb9cad6d66e86ec323eafec1b34cf6bba8bfb936b6690  ./src/capsula-ui/palette_weights_test.go
-3df2d428f811b1f01ee453acecc0bc8479fbaab0d5676c5d903649a1841db4d4  ./src/capsula-ui/panel.go
-4e5827acea7a2e4aa6c2fe3a0a7d60591e0e645b74267a7cf48b5779ce023132  ./src/capsula-ui/panel.html
+e7926a8370d83b4c20580e1db2ab1b07146d1ad099bbab008c5fa04772c96386  ./src/capsula-ui/panel.go
+973ecca729e02ffe248ed751eb621023101fcc5ceaf4c15cc82c86e6b29d4a23  ./src/capsula-ui/panel.html
+43ac5c1e03f2e0dd0a27039286024526a66255fcb800054050077e3e4eda02f5  ./src/capsula-ui/panel_storage_test.go
 1fc4d7af3015f5c4d053b4905398549a96a47d5e9add9b2fd2945bbcc73d0bf9  ./src/capsula-ui/panel_test.go
 1db109bf956810686234982c74ce9400e889f083dd0be86fc349c51dfe1f43a8  ./src/capsula-ui/probe_cover_test.go
 f9affec2c0e8ce86f86bec844c9065ac41ec050c17c768acbefd69401fdd0d16  ./src/capsula-ui/render.go
@@ -37,10 +38,10 @@ a1ca43d38358c7fc76ff589f54f6ec9d8ec23be6a91255c5a385fe330ea559e3  ./src/receiver
 80ac5df5d4804eee84adb65b75118e61912b87a1fa44f83246ea65643e9debdb  ./src/receiver/capsula-audio-helpers.h
 4ef5a492b4798a22928539207dbc11b073691c1058f08e4a54a43e7e43e6609b  ./src/receiver/capsula-media-control.c
 3b90729fd8dc126273e48faba4362bb1bf074224a5ab77314c24104ba68bba1c  ./src/receiver/capsula-startup-gate.h
-5e9eb195ec14b9ec4e1f400ecdc10ccbb988a9b18467f8510e72e8ac1cce8ae6  ./src/receiver/player.c
+f5e0283c5abeeacc5ed564128a11300fda79a3524be87889e7dbbaeb6d156d36  ./src/receiver/player.c
 db9905e9bf835c89c406a4a2a94049da7ad908338fd4c4cd45fb97aefd59dc4b  ./src/receiver/rtsp.c
 c87dba3e573aa87ae4e97a856c668d96c647dcfb485815397541952172f742ea  ./src/receiver/shairport.c
-f5aea266e73873afae6c79facef986efe4318d555a822449f8f962d13d1e7648  ./uninstall.sh
+76b6be360e9162a311041d6a87bef269f054271a8a673f3645e75702bc9a9a07  ./uninstall.sh
 97dfa120cb331e921434bbf8cf75beba84566b7b7fee785768c75d1e2fab11e9  ./voice-agent-fallback.sh
 c3d6369fe2a32271f0a6afb9e0da4e2db061c71c998ff8029d2dafca64af75bb  ./voice-agent-pack.sh
 c4ff7729a4dca8f3d3e9566f23eeb15d42196a28ecf4f757c8aa7a3f531c3565  ./voice-agent-volume-patch.sh

@@ -1,4 +1,4 @@
-FROM debian:bullseye
+FROM debian:bullseye@sha256:6f519a81440354a85eb592c5f32109ab80605f6b892455983a6f618bf87fabe9
 
 ARG DEBIAN_FRONTEND=noninteractive
 

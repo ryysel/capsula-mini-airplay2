@@ -16,7 +16,7 @@ static int capsula_db_percent(double db) {
   if (db >= 0) return 100;
   return (int)lround(100.0 * (1.0 + db / 30.0));
 }
-static void capsula_meter(const void *buf, int samples, unsigned channels,
+static inline void capsula_meter(const void *buf, int samples, unsigned channels,
                            unsigned width) {
   static uint64_t last;
   static double square, peak;

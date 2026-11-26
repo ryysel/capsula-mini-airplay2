@@ -52,7 +52,29 @@ COMMON="--host=aarch64-linux-gnu --prefix=/usr --disable-shared --enable-static"
 
 mkdir -p "$SRC" "$OUT"
 cd "$SRC"
-get() { [ -f "$2" ] || wget -q "$1" -O "$2"; }
+get() {
+    local url=$1 archive=$2 expected
+    case "$archive" in
+        libconfig-1.7.3.tar.gz) expected=545166d6cac037744381d1e9cc5a5405094e7bfad16a411699bcff40bbb31ee7 ;;
+        popt-1.19.tar.gz) expected=6eb40d650526cb9fe63eb4415bcecdf9cf306f7556e77eff689abc5a44670060 ;;
+        soxr-0.1.3.tar.gz) expected=db6ca1b1e8405c6ef92f8294fc123d910abf0a114003b3f0f13fa57a95fd62d0 ;;
+        libsodium-1.0.19.tar.gz) expected=018d79fe0a045cca07331d37bd0cb57b2e838c51bc48fd837a1472e50068bbea ;;
+        libgpg-error-1.49.tar.bz2) expected=8b79d54639dbf4abc08b5406fb2f37e669a2dec091dd024fb87dd367131c63a9 ;;
+        libgcrypt-1.10.3.tar.bz2) expected=8b0870897ac5ac67ded568dcfadf45969cfa8a6beb0fd60af2a9eadc2a3272aa ;;
+        libplist-2.3.0.tar.bz2) expected=4e8580d3f39d3dfa13cefab1a13f39ea85c4b0202e9305c5c8f63818182cac61 ;;
+        ffmpeg-7.1.3.tar.xz) expected=f0bf043299db9e3caacb435a712fc541fbb07df613c4b893e8b77e67baf3adbe ;;
+        nqptp-1.2.9.tar.gz) expected=6aa1d73b8ee760bf19378c319db0d0537a867ff961764b150e19f87d96a02210 ;;
+        sps-5.6.2.tar.gz) expected=0747706e19a64ec550ec8a6a5c26bf8e231a4d032de31644f5a5daa0632c41c4 ;;
+        *) echo "Unpinned build input: $archive" >&2; return 1 ;;
+    esac
+    if [ ! -f "$archive" ]; then
+        wget -q "$url" -O "$archive.partial.$$"
+        printf '%s  %s\n' "$expected" "$archive.partial.$$" | sha256sum -c - >/dev/null
+        mv "$archive.partial.$$" "$archive"
+    else
+        printf '%s  %s\n' "$expected" "$archive" | sha256sum -c - >/dev/null
+    fi
+}
 
 # Skip deps that are already installed in the persistent sysroot.
 have() {

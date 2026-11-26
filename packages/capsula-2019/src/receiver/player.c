@@ -3883,6 +3883,7 @@ void *player_thread_func(void *arg) {
   int skipping_frames_at_start_of_play = 0;
   int capsula_startup_slew_enabled = 0;
   int capsula_startup_slew_reported = 0;
+  int capsula_startup_drop_reported = 0;
 #ifdef CONFIG_AIRPLAY_2
   capsula_startup_slew_enabled = capsula_startup_gate_enabled(conn->airplay_type == ap_2,
       config.output && config.output->name && strcmp(config.output->name, "pulseaudio") == 0,
@@ -4808,6 +4809,16 @@ void *player_thread_func(void *arg) {
                 if (centered_sync_error_time < 0) {
                   request_resync = 1; // ask for a resync
                 } else {
+                  if (capsula_startup_slew_enabled && !capsula_startup_drop_reported &&
+                      conn->playstart && delay_measurement_time >= conn->playstart &&
+                      delay_measurement_time - conn->playstart < 8000000000ULL) {
+                    debug(2, "capsula startup hard correction: history=%.1fms current=%.1fms "
+                             "measurement=%.2fms skip=%d gap=%d first=%d",
+                          centered_sync_error_time * 1e3, sync_error_ns * 1e-6,
+                          measurement_time * 1e-6, (int)frames_to_skip,
+                          (int)inframe->timestamp_gap, inframe->timestamp == conn->first_packet_timestamp);
+                    capsula_startup_drop_reported = 1;
+                  }
                   int16_t occ = conn->ab_write - conn->ab_read;
                   debug(2,
                         "drop late packet, timestamp: %u,  late by: %.3f ms, packets remaining in "
