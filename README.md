@@ -3,9 +3,9 @@
 Музыка с iPhone, iPad и Mac на колонках VK: **Капсула 2019**, **Капсула Мини на Alpine** и **Капсула Мини на родной прошивке**.
 Приёмник работает рядом с существующей системой — этот проект **не прошивает и не взламывает колонку**.
 
-**[Скачать v1.6.0](https://github.com/ryysel/capsula-mini-airplay2/releases/tag/v1.6.0)** · [Примечания к релизу](docs/RELEASE_1_6_0.md).
+**[Скачать v1.6.1](https://github.com/ryysel/capsula-mini-airplay2/releases/tag/v1.6.1)** · [Примечания к релизу](docs/RELEASE_1_6_1.md).
 
-На Капсуле 2019 исправлена обработка умеренного отставания при старте AirPlay 2: приёмник догоняет поток небольшими поправками вместо выбрасывания целых пакетов. Профиль **−1,7 с / 150 мс** не менялся. На устройстве подтверждён один чистый запуск; это не гарантия отсутствия прерываний при любых условиях.
+На стоковых Капсулах при выборе колонки в AirPlay кольцо светится серым до начала трека. Громкость можно изменить с телефона ещё до Play; после начала музыки возвращается оформление по обложке.
 
 ## Возможности
 
@@ -39,10 +39,11 @@
 
 ## Скачать
 
-Готовые архивы: **[v1.6.0](https://github.com/ryysel/capsula-mini-airplay2/releases/tag/v1.6.0)**.
+Готовые архивы: **[v1.6.1](https://github.com/ryysel/capsula-mini-airplay2/releases/tag/v1.6.1)**.
 
-- `capsula-airplay-v1.6.0.tar.gz` — все три пакета, исходники и установщики.
-- `capsula-airplay-mini-windows-v1.6.0.zip` — мастер установки **для Мини на Alpine** с Windows.
+- Для одной модели: `capsula-airplay-capsula-2019-1.6.1.tar.gz`, `capsula-airplay-mini-stock-1.6.1.tar.gz` или `capsula-airplay-mini-a113x-1.6.1.tar.gz` (Alpine). Распакуйте и перейдите в каталог с `install.sh`.
+- `capsula-airplay-v1.6.1.tar.gz` — все три пакета, исходники и установщики.
+- `capsula-airplay-mini-windows-v1.6.1.zip` — мастер установки **для Мини на Alpine** с Windows.
 - `SHA256SUMS.release` рядом с архивами — контрольные суммы загрузок.
 
 Оставьте запас места под резервную копию. Размеры из [отчёта о сжатии v1.5.4](docs/SIZE_20261115.md) исторические и не описывают размер текущего релиза. Копия `voice-agent` готовится из `/rom` на самой колонке, а не поставляется в архиве.
@@ -52,7 +53,7 @@
 ```sh
 git clone https://github.com/ryysel/capsula-mini-airplay2.git
 cd capsula-mini-airplay2
-git switch --detach v1.6.0
+git switch --detach v1.6.1
 ```
 
 ## Установка и обновление
