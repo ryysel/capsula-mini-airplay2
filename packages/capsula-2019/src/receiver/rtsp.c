@@ -2549,6 +2549,10 @@ void handle_setup_2(rtsp_conn_info *conn, rtsp_message *req, rtsp_message *resp)
             debug(3, "No groupContainsGroupLeader in SETUP");
           }
 
+          // A selected PTP output owns native volume even before a track is
+          // queued. Do not interrupt another owner's stream during selection.
+          get_play_lock(conn, 0);
+
           // Open an event port and create an event handler thread
           // Open port...
           conn->local_event_port = 0; // any port

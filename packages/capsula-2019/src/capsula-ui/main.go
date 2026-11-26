@@ -339,6 +339,28 @@ func brightness(hour int) float64 {
 	}
 	return .3
 }
+
+// Use a session identity rather than a boolean: switching phones may not
+// produce an idle poll. Never paint the previous track before new PCM.
+type selectedOutput struct {
+	id      string
+	since   time.Time
+	started bool
+}
+
+func (s *selectedOutput) update(id string, now, sample time.Time) {
+	if !strings.HasPrefix(id, "selected:") {
+		*s = selectedOutput{}
+		return
+	}
+	if s.id != id {
+		*s = selectedOutput{id: id, since: now}
+	}
+	if sample.After(s.since) && !sample.After(now) {
+		s.started = true
+	}
+}
+
 func writeBrokerFrame(colors [12]rgb, scale float64) {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%.3f\n", uptime()+1.5)
@@ -404,6 +426,7 @@ func main() {
 	var fade time.Time
 	signature := ""
 	active := false
+	var selection selectedOutput
 	poll := time.Time{}
 	purrSilent := false
 	if !miniHardware {
@@ -423,7 +446,13 @@ func main() {
 			// A 250 ms tick matches the measured station profile: the palm gesture and
 			// the session state trail Alice by at most one tick instead of two.
 			if now.Sub(poll) >= 250*time.Millisecond {
-				active = control("state") == "active"
+				session := control("session")
+				var sample time.Time
+				if st, err := os.Stat("/tmp/capsula-airplay-level"); err == nil {
+					sample = st.ModTime()
+				}
+				selection.update(session, now, sample)
+				active = selection.id != ""
 				// The purr announces the stock gesture; during a session the gesture is
 				// pause/resume, so the purr must stay silent until the session ends.
 				if !miniHardware && active != purrSilent {
@@ -443,7 +472,7 @@ func main() {
 			p := append([]rgb(nil), c.palette...)
 			c.Unlock()
 			panelSetStatus(active, p)
-			displayVU.tick(now, active && cfg.Mode != "test")
+			displayVU.tick(now, active && selection.started && cfg.Mode != "test")
 
 			// Manual test ignores session state and beat so the edited colours are
 			// exactly what the ring shows; saved channel gain still applies.
@@ -469,6 +498,16 @@ func main() {
 					clearMini()
 				}
 				panelRecord([12]rgb{}, 1)
+				signature = ""
+				continue
+			}
+			if !selection.started {
+				var waiting [12]rgb
+				for i := range waiting {
+					waiting[i] = rgb{.35, .35, .35}
+				}
+				shown = waiting
+				outputFrame(waiting, brightness(now.Hour())*cfg.Brightness)
 				signature = ""
 				continue
 			}

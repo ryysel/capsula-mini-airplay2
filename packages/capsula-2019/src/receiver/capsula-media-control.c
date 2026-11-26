@@ -61,6 +61,7 @@ static void *control_loop(void *unused) {
         setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
         char command[32] = {0};
         ssize_t n = recv(fd, command, sizeof(command)-1, MSG_TRUNC);
+        char session[32];
         const char *reply = "invalid";
         if (n > 0 && n < (ssize_t)sizeof(command)) {
             int cmd = -1;
@@ -75,7 +76,13 @@ static void *control_loop(void *unused) {
                 active = conn->event_channel_fd > 0;
                 pthread_mutex_unlock(&conn->event_sender_mutex);
             }
-            if (!strcmp(command, "state")) {
+            if (!strcmp(command, "session")) {
+                reply = "idle";
+                if (conn && conn->airplay_type == ap_2) {
+                    snprintf(session, sizeof(session), "selected:%d", conn->connection_number);
+                    reply = session;
+                }
+            } else if (!strcmp(command, "state")) {
                 reply = active ? "active" : "idle";
             } else if (cmd >= 0) {
                 reply = "idle";

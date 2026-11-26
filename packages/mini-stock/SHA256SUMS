@@ -1,9 +1,9 @@
 293873708141b748118a5133b4ecd64e5c5d6ccaf39e48844252ddcd08c9db3b  ./bin/capsula-airplay-keys
-b26b11c22b12db306c668cb96d57014c590d04df83cf70869baf2f7670ab6bbe  ./bin/capsula-ui
+6ed1761cbc2c52b3f183ccf1b7cf53979c4aed9204fcd18ebe6d0ab9fc6d2a22  ./bin/capsula-ui
 190dd13fff1c9b1601459df1a62cfc704d750371f35c0a991f4f1a7de7c01283  ./bin/libcapsula-display-arbiter.so
 7581f2a9879fcd79db160f57889e80c912cad564edcf446bb3d0d06394c57e67  ./bin/libuuid.so.1.3.0
 8a9ac4999efe61ca7d84556fefeeb3e8facf005e48321aee6be3c6654b5ff3b0  ./bin/nqptp
-e6192ac6073f8b5055673c5f603a3f6456a57373450a31520dc5a33c16265e2c  ./bin/shairport-sync
+72b4cc82f1775022cdbcf06e5d51814dde456ae2d0637b38a375a314a420cc37  ./bin/shairport-sync
 871d65c543cfda923d8502b92a58d4934c434aead8746d7b4a7f6dad66eb3dad  ./bin/upx
 67bad68793d41e714a51b0ebd151829e6dea319fd610a5de5d168f03789b0724  ./display-arbiter-install.sh
 793880306e9e62f5de67c8627b381c6af24bbb0d0f5c867bdf014bb1b2030046  ./etc/S50avahi-daemon
@@ -24,8 +24,8 @@ c8168487636b7c6c35618677e460450f7346db21a1051153dcb85c39d576a084  ./src/display-
 0a83500390e6e2eaaa9080400640f354594f70b4c901e15fc30fcac827877dd6  ./src/receiver/README.md
 a1ca43d38358c7fc76ff589f54f6ec9d8ec23be6a91255c5a385fe330ea559e3  ./src/receiver/audio_pa.c
 80ac5df5d4804eee84adb65b75118e61912b87a1fa44f83246ea65643e9debdb  ./src/receiver/capsula-audio-helpers.h
-4ef5a492b4798a22928539207dbc11b073691c1058f08e4a54a43e7e43e6609b  ./src/receiver/capsula-media-control.c
-db9905e9bf835c89c406a4a2a94049da7ad908338fd4c4cd45fb97aefd59dc4b  ./src/receiver/rtsp.c
+fa760be0f7315be43da504715bbbe62dd8e729afc5a490602aad7faaf835ec1c  ./src/receiver/capsula-media-control.c
+353b496ed6923bbaf42a2cc29b338d39bf3fac963e8078f7554db236bd7a95b4  ./src/receiver/rtsp.c
 f7f317346de9a660400faa625ed854bd5cfed1e342635ed64a4911f88833fe3b  ./src/receiver/shairport.c
 11133eca10f0440c81a8272917ddd9f8afae5e3344ceaecd66866916fc5082bd  ./uninstall.sh
 97dfa120cb331e921434bbf8cf75beba84566b7b7fee785768c75d1e2fab11e9  ./voice-agent-fallback.sh
